@@ -1,0 +1,33 @@
+This program was developed in Ubuntu 16.04.
+Please install the following libraries before compiling and running.
+sudo apt-get install libglew-dev
+sudo apt-get install freeglut3-dev
+
+usage:
+cd hw1-starterCode/
+make
+./hw1 <heightmap file>
+
+Note that files other than "hw1.cpp" were also modified slightly.
+Please compile the project with all files in the zip file.
+If you are using vmware to run this code, there might be a bug using opengl texture. (https://communities.vmware.com/thread/537924?start=0&tstart=0)
+
+Basic requirements for this homework:
+1. This program uses the OpenGL core profile, version 3.3, and shader-based OpenGL.
+2. This program can handle at least a 256x256 image at interactive frame rates (window size of 1280x720).
+3. This program is able to render the height field as points, lines ("wireframe"), solid triangles and wireframe with solid triangles (with switching keys 'q', 'w', 'e', 'r', respectively).
+4. This program renders as a perspective view, and utilizes GL's depth buffer for hidden surface removal.
+5. User can use input from the mouse to rotate the heightfield. (left button for x, y axis, middle button for z axis)
+6. User can use input from the mouse to move the heightfield. (left button for x, y axis, middle button for z axis with control button preesed)
+7. User can use input from the mouse to change the scale of the heightfield. (left button for x, y axis, middle button for z axis with shift button preesed)
+8. Grayscale (combined with texture) is used for coloring vertices using smooth gradient.
+9. The source code is commented as detailed as possible.
+10. 300 animation images are stored in animation/ 
+
+
+Extras:
+1. This program uses element arrays and glDrawElements for optimization.
+2. GL_TRIANGLE_STRIP is also used for optimization.
+3. This program supports color (ImageIO::getBytesPerPixel == 3) in input images (try "heightmap/linux.jpg")
+4. This program is able to render wireframe on top of solid triangles (with switching key 'r'), z-buffer fighting is avoided using glPolygonOffset, please take a closer look in animation images.
+5. This program also uses texture to color the surface with an texture image. (height and color gradient is still preserved)
