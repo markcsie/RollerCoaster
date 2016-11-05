@@ -1,6 +1,6 @@
 LIB_CODE_BASE=../openGLHelper-starterCode
 
-HW1_CXX_SRC=hw2.cpp
+HW1_CXX_SRC=hw2.cpp catmull_rom.cpp
 HW1_HEADER=
 HW1_OBJ=$(notdir $(patsubst %.cpp,%.o,$(HW1_CXX_SRC)))
 
@@ -24,7 +24,7 @@ UNAME_S=$(shell uname -s)
 
 ifeq ($(UNAME_S),Linux)
   PLATFORM=Linux
-  INCLUDE=-I../external/glm/ -I$(LIB_CODE_BASE) -I../external/imageIO
+  INCLUDE=-I../external/glm/ -I$(LIB_CODE_BASE) -I../external/imageIO -I./include
   LIB=-lGLEW -lGL -lglut -ljpeg
   LDFLAGS=
 else
