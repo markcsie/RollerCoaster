@@ -22,6 +22,77 @@
 // spline struct 
 // contains how many control points the spline has, and an array of control points 
 
+std::vector<GLfloat> cube_map_vertices = {
+    // Positions          
+    -1.0f,  1.0f, -1.0f,
+    -1.0f, -1.0f, -1.0f,
+     1.0f, -1.0f, -1.0f,
+     1.0f, -1.0f, -1.0f,
+     1.0f,  1.0f, -1.0f,
+    -1.0f,  1.0f, -1.0f,
+
+    -1.0f, -1.0f,  1.0f,
+    -1.0f, -1.0f, -1.0f,
+    -1.0f,  1.0f, -1.0f,
+    -1.0f,  1.0f, -1.0f,
+    -1.0f,  1.0f,  1.0f,
+    -1.0f, -1.0f,  1.0f,
+
+     1.0f, -1.0f, -1.0f,
+     1.0f, -1.0f,  1.0f,
+     1.0f,  1.0f,  1.0f,
+     1.0f,  1.0f,  1.0f,
+     1.0f,  1.0f, -1.0f,
+     1.0f, -1.0f, -1.0f,
+
+    -1.0f, -1.0f,  1.0f,
+    -1.0f,  1.0f,  1.0f,
+     1.0f,  1.0f,  1.0f,
+     1.0f,  1.0f,  1.0f,
+     1.0f, -1.0f,  1.0f,
+    -1.0f, -1.0f,  1.0f,
+
+    -1.0f,  1.0f, -1.0f,
+     1.0f,  1.0f, -1.0f,
+     1.0f,  1.0f,  1.0f,
+     1.0f,  1.0f,  1.0f,
+    -1.0f,  1.0f,  1.0f,
+    -1.0f,  1.0f, -1.0f,
+
+    -1.0f, -1.0f, -1.0f,
+    -1.0f, -1.0f,  1.0f,
+     1.0f, -1.0f, -1.0f,
+     1.0f, -1.0f, -1.0f,
+    -1.0f, -1.0f,  1.0f,
+     1.0f, -1.0f,  1.0f
+};
+
+//std::vector<GLfloat> cube_map_vertices = {// the idea is that all vectors have a length of 1 so that position can also be used as cubemap texture coords
+//  -1, -1, -1,
+//  +1, -1, -1,
+//  -1, +1, -1,
+//  +1, +1, -1,
+//  -1, -1, +1,
+//  +1, -1, +1,
+//  -1, +1, +1,
+//  +1, -1, +1
+//};
+
+//std::vector<GLint> cube_map_indices = {
+//  7, 5, 1, // positive x
+//  1, 3, 7,
+//  6, 4, 0, // negative x
+//  0, 2, 6,
+//  6, 7, 3, // positive y
+//  3, 2, 6,
+//  4, 5, 1, // negative y
+//  1, 7, 4,
+//  4, 5, 7, // positive z
+//  7, 6, 4,
+//  3, 1, 0, // negative z
+//  0, 2, 3,
+//};
+
 struct Spline
 {
   int numControlPoints;
@@ -56,12 +127,18 @@ const GLuint windowWidth = 1280;
 const GLuint windowHeight = 720;
 char windowTitle[512] = "CSCI 420 homework II";
 
+OpenGLMatrix openGLMatrix;
+
 BasicPipelineProgram basic_pipeline;
 GLuint basic_vao;
 
 BasicPipelineProgram texture_pipeline;
 GLuint texture_vao;
-OpenGLMatrix openGLMatrix;
+
+BasicPipelineProgram cube_map_pipeline;
+GLuint cube_map_vao;
+GLuint cube_map_id;
+
 
 GLuint numSplineVertices = 0;
 
@@ -185,15 +262,81 @@ int initTexture(const char * imageFilename, GLuint textureHandle)
   glTexParameterf(GL_TEXTURE_2D, GL_TEXTURE_MAX_ANISOTROPY_EXT, 0.5f * fLargest);
 
   // query for any errors
-//  GLenum errCode = glGetError();
-//  if (errCode != 0)
-//  {
-//    printf("Texture initialization error. Error code: %d.\n", errCode);
-//    return -1;
-//  }
+  //  GLenum errCode = glGetError();
+  //  if (errCode != 0)
+  //  {
+  //    printf("Texture initialization error. Error code: %d.\n", errCode);
+  //    return -1;
+  //  }
 
   // de-allocate the pixel array -- it is no longer needed
   delete [] pixelsRGBA;
+
+  return 0;
+}
+
+int initCubeMap(const std::vector<std::string> &file_names)
+{
+  glGenTextures(1, &cube_map_id);
+  glActiveTexture(GL_TEXTURE0);
+
+  // bind the texture
+  glBindTexture(GL_TEXTURE_CUBE_MAP, cube_map_id);
+
+  // read the texture image
+  for (unsigned int i = 0; i < file_names.size(); i++)
+  {
+    ImageIO img;
+    ImageIO::errorType err = img.loadJPEG(file_names[i].c_str());
+    if (err != ImageIO::OK)
+    {
+      printf("Loading texture from %s failed.\n", file_names[i].c_str());
+      return -1;
+    }
+
+    // check that the number of bytes is a multiple of 4
+    if (img.getWidth() * img.getBytesPerPixel() % 4)
+    {
+      printf("Error (%s): The width*numChannels in the loaded image must be a multiple of 4.\n", file_names[i].c_str());
+      return -1;
+    }
+
+    // allocate space for an array of pixels
+    int width = img.getWidth();
+    int height = img.getHeight();
+    unsigned char * pixelsRGBA = new unsigned char[4 * width * height]; // we will use 4 bytes per pixel, i.e., RGBA
+
+    // fill the pixelsRGBA array with the image pixels
+    memset(pixelsRGBA, 0, 4 * width * height); // set all bytes to 0
+    for (int h = 0; h < height; h++)
+    {
+      for (int w = 0; w < width; w++)
+      {
+        // assign some default byte values (for the case where img.getBytesPerPixel() < 4)
+        pixelsRGBA[4 * (h * width + w) + 0] = 0; // red
+        pixelsRGBA[4 * (h * width + w) + 1] = 0; // green
+        pixelsRGBA[4 * (h * width + w) + 2] = 0; // blue
+        pixelsRGBA[4 * (h * width + w) + 3] = 255; // alpha channel; fully opaque
+
+        // set the RGBA channels, based on the loaded image
+        int numChannels = img.getBytesPerPixel();
+        for (int c = 0; c < numChannels; c++) // only set as many channels as are available in the loaded image; the rest get the default value
+          pixelsRGBA[4 * (h * width + w) + c] = img.getPixel(w, h, c);
+      }
+    }
+
+    glTexImage2D(GL_TEXTURE_CUBE_MAP_POSITIVE_X + i, 0, GL_RGBA8, img.getWidth(), img.getHeight(), 0, GL_RGBA, GL_UNSIGNED_BYTE, pixelsRGBA);
+
+    // de-allocate the pixel array -- it is no longer needed
+    delete [] pixelsRGBA;
+  }
+
+  glTexParameteri(GL_TEXTURE_CUBE_MAP, GL_TEXTURE_MAG_FILTER, GL_LINEAR);
+  glTexParameteri(GL_TEXTURE_CUBE_MAP, GL_TEXTURE_MIN_FILTER, GL_LINEAR);
+  glTexParameteri(GL_TEXTURE_CUBE_MAP, GL_TEXTURE_WRAP_R, GL_CLAMP_TO_EDGE);
+  glTexParameteri(GL_TEXTURE_CUBE_MAP, GL_TEXTURE_WRAP_S, GL_CLAMP_TO_EDGE);
+  glTexParameteri(GL_TEXTURE_CUBE_MAP, GL_TEXTURE_WRAP_T, GL_CLAMP_TO_EDGE);
+  glBindTexture(GL_TEXTURE_CUBE_MAP, 0);
 
   return 0;
 }
@@ -226,8 +369,48 @@ void saveScreenshot(const char * filename)
   delete [] screenshotData;
 }
 
+void drawCubeMap()
+{
+  glDepthMask(GL_FALSE);
+  cube_map_pipeline.Bind();
+  // ... Set view and projection matrix
+  glBindVertexArray(cube_map_vao);
+
+  GLfloat projectionMatrix[16];
+  openGLMatrix.SetMatrixMode(OpenGLMatrix::Projection);
+  openGLMatrix.GetMatrix(projectionMatrix);
+  cube_map_pipeline.SetProjectionMatrix(projectionMatrix);
+
+  // Set model view matrix for shaders
+  GLfloat modelViewMatrix[16];
+  openGLMatrix.SetMatrixMode(OpenGLMatrix::ModelView);
+  openGLMatrix.LoadIdentity();
+  openGLMatrix.LookAt(0, 0, 50, 0, 0, 0, 0, 1, 0);
+
+  // T R S
+  openGLMatrix.Translate(landTranslate[0], landTranslate[1], landTranslate[2]);
+  openGLMatrix.Rotate(landRotate[0], 1, 0, 0);
+  openGLMatrix.Rotate(landRotate[1], 0, 1, 0);
+  openGLMatrix.Rotate(landRotate[2], 0, 0, 1);
+  openGLMatrix.Scale(landScale[0], -landScale[1], landScale[2]);
+  openGLMatrix.GetMatrix(modelViewMatrix);
+  cube_map_pipeline.SetModelViewMatrix(modelViewMatrix);
+
+  glBindTexture(GL_TEXTURE_CUBE_MAP, cube_map_id);
+//  glDrawElements(GL_TRIANGLES, cube_map_indices.size(), GL_UNSIGNED_INT, (const GLvoid *) 0);
+  glDrawArrays(GL_TRIANGLES, 0, 36);
+  glBindVertexArray(0);
+  glDepthMask(GL_TRUE);
+}
+
 void displayFunc()
 {
+  // Clear the scene
+  glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
+
+  // Draw cube map
+  drawCubeMap();
+
   basic_pipeline.Bind();
   glBindVertexArray(basic_vao);
   // Set projection matrix for shaders
@@ -235,7 +418,7 @@ void displayFunc()
   openGLMatrix.SetMatrixMode(OpenGLMatrix::Projection);
   openGLMatrix.GetMatrix(projectionMatrix);
   basic_pipeline.SetProjectionMatrix(projectionMatrix);
-//
+  //
   // Set model view matrix for shaders
   GLfloat modelViewMatrix[16];
   openGLMatrix.SetMatrixMode(OpenGLMatrix::ModelView);
@@ -251,9 +434,6 @@ void displayFunc()
   openGLMatrix.GetMatrix(modelViewMatrix);
   basic_pipeline.SetModelViewMatrix(modelViewMatrix);
 
-  // Clear the scene
-  glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
-
   GLint index = 0;
   for (size_t i = 0; i < g_num_spline_vertices.size(); i++)
   {
@@ -265,12 +445,12 @@ void displayFunc()
     openGLMatrix.GetMatrix(modelViewMatrix);
     basic_pipeline.SetModelViewMatrix(modelViewMatrix);
   }
-  
-  texture_pipeline.Bind();
-  glBindVertexArray(texture_vao);
-  texture_pipeline.SetProjectionMatrix(projectionMatrix);
-  texture_pipeline.SetModelViewMatrix(modelViewMatrix);
-  glDrawElements(GL_TRIANGLE_STRIP, 2 * 3, GL_UNSIGNED_INT, (const GLvoid *) 0);
+
+  //  texture_pipeline.Bind();
+  //  glBindVertexArray(texture_vao);
+  //  texture_pipeline.SetProjectionMatrix(projectionMatrix);
+  //  texture_pipeline.SetModelViewMatrix(modelViewMatrix);
+  //  glDrawElements(GL_TRIANGLE_STRIP, 2 * 3, GL_UNSIGNED_INT, (const GLvoid *) 0);
 
   glutSwapBuffers(); // Swap buffers for double buffering
 }
@@ -431,6 +611,40 @@ void keyboardFunc(unsigned char key, int x, int y)
 
 void initScene()
 {
+  // ================ cube map
+  cube_map_pipeline.Init("../openGLHelper-starterCode", "cubeMap.vertexShader.glsl", "cubeMap.fragmentShader.glsl");
+  // Generate and bind Vertex Array Object
+  glGenVertexArrays(1, &cube_map_vao);
+  glBindVertexArray(cube_map_vao);
+
+  for (auto &f : cube_map_vertices)
+  {
+    f *= 100;
+  }
+
+  // Generate, bind and send vertex Vertex Buffer Object to shaders
+  GLuint cube_map_vertexBufferName;
+  glGenBuffers(1, &cube_map_vertexBufferName);
+  glBindBuffer(GL_ARRAY_BUFFER, cube_map_vertexBufferName);
+  glBufferData(GL_ARRAY_BUFFER, cube_map_vertices.size() * sizeof (GLfloat), &cube_map_vertices[0], GL_STATIC_DRAW);
+  GLuint cube_map_posLocation = glGetAttribLocation(cube_map_pipeline.GetProgramHandle(), "position");
+  glVertexAttribPointer(cube_map_posLocation, 3, GL_FLOAT, GL_FALSE, 0, 0);
+  glEnableVertexArrayAttrib(cube_map_vao, cube_map_posLocation);
+  
+//  GLuint cube_map_elementbuffer;
+//  glGenBuffers(1, &cube_map_elementbuffer);
+//  glBindBuffer(GL_ELEMENT_ARRAY_BUFFER, cube_map_elementbuffer);
+//  glBufferData(GL_ELEMENT_ARRAY_BUFFER, cube_map_indices.size() * sizeof (unsigned int), &cube_map_indices[0], GL_STATIC_DRAW);
+
+  std::vector<std::string> file_names = {"./arrakisday_rt.jpg", "./arrakisday_lf.jpg", "./arrakisday_dn.jpg", "./arrakisday_up.jpg", "./arrakisday_bk.jpg", "./arrakisday_ft.jpg"};
+//  std::vector<std::string> file_names = {"./right.jpg", "./left.jpg", "./bottom.jpg", "./top.jpg", "./back.jpg", "./front.jpg"};
+
+  if (initCubeMap(file_names) != 0)
+  {
+    std::cerr << "ggg " << std::endl;
+  }
+  //
+
   std::vector<GLfloat> vertices;
   for (size_t i = 0; i < splines.size(); i++)
   {
@@ -478,7 +692,7 @@ void initScene()
         vertices.push_back(p.x_);
         vertices.push_back(p.y_);
         vertices.push_back(p.z_);
-//        std::cout << p.x_ << " " << p.y_ << " " << p.z_ << std::endl;
+        //        std::cout << p.x_ << " " << p.y_ << " " << p.z_ << std::endl;
         g_num_spline_vertices.back()++;
       }
     }
@@ -494,17 +708,9 @@ void initScene()
     colors.push_back(1.0);
     colors.push_back(0.0);
   }
-  
-  GLuint ground_texture_id;
-  glGenTextures(1, &ground_texture_id);
-  if (initTexture("./grass.jpg", ground_texture_id) != 0) {
-    std::cerr << "loading ground_texture error" << std::endl;
-    exit(EXIT_FAILURE);
-  }
 
   // Create shaders
   basic_pipeline.Init("../openGLHelper-starterCode", "basic.vertexShader.glsl", "basic.fragmentShader.glsl");
-  texture_pipeline.Init("../openGLHelper-starterCode", "texture.vertexShader.glsl", "texture.fragmentShader.glsl");
 
   // Generate and bind Vertex Array Object
   glGenVertexArrays(1, &basic_vao);
@@ -527,12 +733,21 @@ void initScene()
   GLuint colLocation = glGetAttribLocation(basic_pipeline.GetProgramHandle(), "color");
   glVertexAttribPointer(colLocation, 4, GL_FLOAT, GL_FALSE, 0, 0);
   glEnableVertexArrayAttrib(basic_vao, colLocation);
-  
+
   // ====================objects with textures=====================
+  texture_pipeline.Init("../openGLHelper-starterCode", "texture.vertexShader.glsl", "texture.fragmentShader.glsl");
+  GLuint ground_texture_id;
+  glGenTextures(1, &ground_texture_id);
+  if (initTexture("./grass.jpg", ground_texture_id) != 0)
+  {
+    std::cerr << "loading ground_texture error" << std::endl;
+    exit(EXIT_FAILURE);
+  }
+
   // Generate and bind Vertex Array Object
   glGenVertexArrays(1, &texture_vao);
   glBindVertexArray(texture_vao);
-  
+
   setTextureUnit(GL_TEXTURE0);
 
   std::vector<GLfloat> texture_vertices;
@@ -559,17 +774,17 @@ void initScene()
   GLuint texture_posLocation = glGetAttribLocation(texture_pipeline.GetProgramHandle(), "position");
   glVertexAttribPointer(texture_posLocation, 3, GL_FLOAT, GL_FALSE, 0, 0);
   glEnableVertexArrayAttrib(texture_vao, texture_posLocation);
-  
+
   std::vector<GLfloat> uvData;
   uvData.push_back(0.0);
   uvData.push_back(1.0);
-  
+
   uvData.push_back(0.0);
   uvData.push_back(0.0);
-  
+
   uvData.push_back(1.0);
   uvData.push_back(0.0);
-  
+
   uvData.push_back(1.0);
   uvData.push_back(1.0);
   // Generate, bind and send uv Vertex Buffer Object to shaders for texture mapping
@@ -580,22 +795,22 @@ void initScene()
   GLuint uvLocation = glGetAttribLocation(texture_pipeline.GetProgramHandle(), "texCoord");
   glVertexAttribPointer(uvLocation, 2, GL_FLOAT, GL_FALSE, 0, 0);
   glEnableVertexArrayAttrib(texture_vao, uvLocation);
-  
-    // Generate and bind elements Vertex Buffer Object
+
+  // Generate and bind elements Vertex Buffer Object
   std::vector<GLuint> texture_triangleIndices;
   texture_triangleIndices.push_back(0);
   texture_triangleIndices.push_back(1);
   texture_triangleIndices.push_back(2);
-  
+
   texture_triangleIndices.push_back(2);
   texture_triangleIndices.push_back(3);
   texture_triangleIndices.push_back(0);
-  
+
   GLuint elementbuffer;
   glGenBuffers(1, &elementbuffer);
   glBindBuffer(GL_ELEMENT_ARRAY_BUFFER, elementbuffer);
   glBufferData(GL_ELEMENT_ARRAY_BUFFER, texture_triangleIndices.size() * sizeof (unsigned int), &texture_triangleIndices[0], GL_STATIC_DRAW);
-  
+
 
   // Enable depth testing so that the hidden scene will not be drawn.
   glEnable(GL_DEPTH_TEST);
@@ -669,7 +884,7 @@ int main(int argc, char ** argv)
     std::cout << "error: " << glewGetErrorString(result) << std::endl;
     exit(EXIT_FAILURE);
   }
-  
+
   GLenum errCode = glGetError();
   if (errCode != 0)
   {
