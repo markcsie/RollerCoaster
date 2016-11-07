@@ -32,6 +32,22 @@ Point CatmullRom::splinePoint(const double &u)
   return p;
 }
 
+Point CatmullRom::splineTangent(const double &u)
+{
+  double u2 = std::pow(u, 2);
+  
+  double k1 = -s_ * 3 * u2 + 2 * s_ * 2 * u - s_;
+  double k2 = (2 - s_) * 3 * u2 + (s_ - 3) * 2 * u2;
+  double k3 = (s_ - 2) * 3 * u2 + (3 - 2 * s_) * 2 * u2 + s_;
+  double k4 = s_ * 3 * u2 - s_ * 2 * u2;
+  
+  Point p;
+  p.x_ = k1 * p1_.x_ + k2 * p2_.x_ + k3 * p3_.x_ + k4 * p4_.x_;
+  p.y_ = k1 * p1_.y_ + k2 * p2_.y_ + k3 * p3_.y_ + k4 * p4_.y_;
+  p.z_ = k1 * p1_.z_ + k2 * p2_.z_ + k3 * p3_.z_ + k4 * p4_.z_;
+  return p;
+}
+
 //Point catmullRom(double u, double s) {
 //
 //}

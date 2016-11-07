@@ -23,75 +23,49 @@
 // contains how many control points the spline has, and an array of control points 
 
 std::vector<GLfloat> cube_map_vertices = {
-    // Positions          
-    -1.0f,  1.0f, -1.0f,
-    -1.0f, -1.0f, -1.0f,
-     1.0f, -1.0f, -1.0f,
-     1.0f, -1.0f, -1.0f,
-     1.0f,  1.0f, -1.0f,
-    -1.0f,  1.0f, -1.0f,
+  // Positions          
+  -1.0f, 1.0f, -1.0f,
+  -1.0f, -1.0f, -1.0f,
+  1.0f, -1.0f, -1.0f,
+  1.0f, -1.0f, -1.0f,
+  1.0f, 1.0f, -1.0f,
+  -1.0f, 1.0f, -1.0f,
 
-    -1.0f, -1.0f,  1.0f,
-    -1.0f, -1.0f, -1.0f,
-    -1.0f,  1.0f, -1.0f,
-    -1.0f,  1.0f, -1.0f,
-    -1.0f,  1.0f,  1.0f,
-    -1.0f, -1.0f,  1.0f,
+  -1.0f, -1.0f, 1.0f,
+  -1.0f, -1.0f, -1.0f,
+  -1.0f, 1.0f, -1.0f,
+  -1.0f, 1.0f, -1.0f,
+  -1.0f, 1.0f, 1.0f,
+  -1.0f, -1.0f, 1.0f,
 
-     1.0f, -1.0f, -1.0f,
-     1.0f, -1.0f,  1.0f,
-     1.0f,  1.0f,  1.0f,
-     1.0f,  1.0f,  1.0f,
-     1.0f,  1.0f, -1.0f,
-     1.0f, -1.0f, -1.0f,
+  1.0f, -1.0f, -1.0f,
+  1.0f, -1.0f, 1.0f,
+  1.0f, 1.0f, 1.0f,
+  1.0f, 1.0f, 1.0f,
+  1.0f, 1.0f, -1.0f,
+  1.0f, -1.0f, -1.0f,
 
-    -1.0f, -1.0f,  1.0f,
-    -1.0f,  1.0f,  1.0f,
-     1.0f,  1.0f,  1.0f,
-     1.0f,  1.0f,  1.0f,
-     1.0f, -1.0f,  1.0f,
-    -1.0f, -1.0f,  1.0f,
+  -1.0f, -1.0f, 1.0f,
+  -1.0f, 1.0f, 1.0f,
+  1.0f, 1.0f, 1.0f,
+  1.0f, 1.0f, 1.0f,
+  1.0f, -1.0f, 1.0f,
+  -1.0f, -1.0f, 1.0f,
 
-    -1.0f,  1.0f, -1.0f,
-     1.0f,  1.0f, -1.0f,
-     1.0f,  1.0f,  1.0f,
-     1.0f,  1.0f,  1.0f,
-    -1.0f,  1.0f,  1.0f,
-    -1.0f,  1.0f, -1.0f,
+  -1.0f, 1.0f, -1.0f,
+  1.0f, 1.0f, -1.0f,
+  1.0f, 1.0f, 1.0f,
+  1.0f, 1.0f, 1.0f,
+  -1.0f, 1.0f, 1.0f,
+  -1.0f, 1.0f, -1.0f,
 
-    -1.0f, -1.0f, -1.0f,
-    -1.0f, -1.0f,  1.0f,
-     1.0f, -1.0f, -1.0f,
-     1.0f, -1.0f, -1.0f,
-    -1.0f, -1.0f,  1.0f,
-     1.0f, -1.0f,  1.0f
+  -1.0f, -1.0f, -1.0f,
+  -1.0f, -1.0f, 1.0f,
+  1.0f, -1.0f, -1.0f,
+  1.0f, -1.0f, -1.0f,
+  -1.0f, -1.0f, 1.0f,
+  1.0f, -1.0f, 1.0f
 };
-
-//std::vector<GLfloat> cube_map_vertices = {// the idea is that all vectors have a length of 1 so that position can also be used as cubemap texture coords
-//  -1, -1, -1,
-//  +1, -1, -1,
-//  -1, +1, -1,
-//  +1, +1, -1,
-//  -1, -1, +1,
-//  +1, -1, +1,
-//  -1, +1, +1,
-//  +1, -1, +1
-//};
-
-//std::vector<GLint> cube_map_indices = {
-//  7, 5, 1, // positive x
-//  1, 3, 7,
-//  6, 4, 0, // negative x
-//  0, 2, 6,
-//  6, 7, 3, // positive y
-//  3, 2, 6,
-//  4, 5, 1, // negative y
-//  1, 7, 4,
-//  4, 5, 7, // positive z
-//  7, 6, 4,
-//  3, 1, 0, // negative z
-//  0, 2, 3,
-//};
 
 struct Spline
 {
@@ -99,12 +73,27 @@ struct Spline
   std::vector<Point> points;
 };
 
+//double current_u = 0;
+size_t current_spline_point_index = 0;
+//Point current_eye;
+//Point current_focus;
+//Point current_up;
+//Point current_b;
+
 // the spline array 
 std::vector<Spline> splines;
+std::vector<GLfloat> spline_vertices;
+std::vector<Point> spline_n;
+std::vector<Point> spline_t;
+std::vector<Point> spline_b;
+const double alpha = 0.5;
 // total number of splines 
 GLsizei numSplines;
 std::vector<GLsizei> g_num_spline_vertices;
-GLsizei numVertices;
+GLsizei num_spline_points;
+
+std::vector<GLfloat> cross_section_vertices;
+std::vector<GLuint> cross_section_indices;
 
 int mousePos[2]; // x,y coordinate of the mouse position
 
@@ -131,6 +120,7 @@ OpenGLMatrix openGLMatrix;
 
 BasicPipelineProgram basic_pipeline;
 GLuint basic_vao;
+GLuint cross_section_vao;
 
 BasicPipelineProgram texture_pipeline;
 GLuint texture_vao;
@@ -382,10 +372,11 @@ void drawCubeMap()
   cube_map_pipeline.SetProjectionMatrix(projectionMatrix);
 
   // Set model view matrix for shaders
-  GLfloat modelViewMatrix[16];
   openGLMatrix.SetMatrixMode(OpenGLMatrix::ModelView);
-  openGLMatrix.LoadIdentity();
-  openGLMatrix.LookAt(0, 0, 50, 0, 0, 0, 0, 1, 0);
+  openGLMatrix.PushMatrix();
+
+  //  openGLMatrix.LoadIdentity();
+  //  openGLMatrix.LookAt(0, 0, 50, 0, 0, 0, 0, 1, 0);
 
   // T R S
   openGLMatrix.Translate(landTranslate[0], landTranslate[1], landTranslate[2]);
@@ -393,24 +384,56 @@ void drawCubeMap()
   openGLMatrix.Rotate(landRotate[1], 0, 1, 0);
   openGLMatrix.Rotate(landRotate[2], 0, 0, 1);
   openGLMatrix.Scale(landScale[0], -landScale[1], landScale[2]);
+  GLfloat modelViewMatrix[16];
   openGLMatrix.GetMatrix(modelViewMatrix);
   cube_map_pipeline.SetModelViewMatrix(modelViewMatrix);
 
   glBindTexture(GL_TEXTURE_CUBE_MAP, cube_map_id);
-//  glDrawElements(GL_TRIANGLES, cube_map_indices.size(), GL_UNSIGNED_INT, (const GLvoid *) 0);
   glDrawArrays(GL_TRIANGLES, 0, 36);
   glBindVertexArray(0);
   glDepthMask(GL_TRUE);
+
+  openGLMatrix.PopMatrix();
 }
 
-void displayFunc()
+void drawCrossSection()
 {
-  // Clear the scene
-  glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
+  basic_pipeline.Bind();
+  glBindVertexArray(cross_section_vao);
 
-  // Draw cube map
-  drawCubeMap();
+  // ... Set view and projection matrix
+  GLfloat projectionMatrix[16];
+  openGLMatrix.SetMatrixMode(OpenGLMatrix::Projection);
+  openGLMatrix.GetMatrix(projectionMatrix);
+  basic_pipeline.SetProjectionMatrix(projectionMatrix);
 
+  // Set model view matrix for shaders
+  openGLMatrix.SetMatrixMode(OpenGLMatrix::ModelView);
+  openGLMatrix.PushMatrix();
+
+  //  openGLMatrix.LoadIdentity();
+  //  openGLMatrix.LookAt(0, 0, 50, 0, 0, 0, 0, 1, 0);
+
+  // T R S
+  openGLMatrix.Translate(landTranslate[0], landTranslate[1], landTranslate[2]);
+  openGLMatrix.Rotate(landRotate[0], 1, 0, 0);
+  openGLMatrix.Rotate(landRotate[1], 0, 1, 0);
+  openGLMatrix.Rotate(landRotate[2], 0, 0, 1);
+  openGLMatrix.Scale(landScale[0], landScale[1], landScale[2]);
+  GLfloat modelViewMatrix[16];
+  openGLMatrix.GetMatrix(modelViewMatrix);
+  basic_pipeline.SetModelViewMatrix(modelViewMatrix);
+
+  //  glPolygonMode(GL_FRONT_AND_BACK, GL_LINE);
+  glDrawElements(GL_TRIANGLES, cross_section_indices.size(), GL_UNSIGNED_INT, (const GLvoid *) 0);
+  //  glDrawArrays(GL_POINTS, 0, 6);
+
+  glBindVertexArray(0);
+  openGLMatrix.PopMatrix();
+}
+
+void drawSplineCurve()
+{
   basic_pipeline.Bind();
   glBindVertexArray(basic_vao);
   // Set projection matrix for shaders
@@ -420,10 +443,10 @@ void displayFunc()
   basic_pipeline.SetProjectionMatrix(projectionMatrix);
   //
   // Set model view matrix for shaders
-  GLfloat modelViewMatrix[16];
   openGLMatrix.SetMatrixMode(OpenGLMatrix::ModelView);
-  openGLMatrix.LoadIdentity();
-  openGLMatrix.LookAt(0, 0, 50, 0, 0, 0, 0, 1, 0);
+  openGLMatrix.PushMatrix();
+  //  openGLMatrix.LoadIdentity();
+  //  openGLMatrix.LookAt(0, 0, 50, 0, 0, 0, 0, 1, 0);
 
   // T R S
   openGLMatrix.Translate(landTranslate[0], landTranslate[1], landTranslate[2]);
@@ -431,6 +454,7 @@ void displayFunc()
   openGLMatrix.Rotate(landRotate[1], 0, 1, 0);
   openGLMatrix.Rotate(landRotate[2], 0, 0, 1);
   openGLMatrix.Scale(landScale[0], landScale[1], landScale[2]);
+  GLfloat modelViewMatrix[16];
   openGLMatrix.GetMatrix(modelViewMatrix);
   basic_pipeline.SetModelViewMatrix(modelViewMatrix);
 
@@ -445,6 +469,240 @@ void displayFunc()
     openGLMatrix.GetMatrix(modelViewMatrix);
     basic_pipeline.SetModelViewMatrix(modelViewMatrix);
   }
+
+  openGLMatrix.PopMatrix();
+}
+
+void setCrossSectionVertices()
+{
+  for (size_t i = 0; i < num_spline_points; i++)
+  {
+    Point p;
+    p.x_ = spline_vertices[i * 3];
+    p.y_ = spline_vertices[i * 3 + 1];
+    p.z_ = spline_vertices[i * 3 + 2];
+
+    Point next_p;
+    if (i == num_spline_points - 1)
+    {
+      next_p.x_ = spline_vertices[(i - 1) * 3];
+      next_p.y_ = spline_vertices[(i - 1) * 3 + 1];
+      next_p.z_ = spline_vertices[(i - 1) * 3 + 2];
+    }
+    else
+    {
+      next_p.x_ = spline_vertices[(i + 1) * 3];
+      next_p.y_ = spline_vertices[(i + 1) * 3 + 1];
+      next_p.z_ = spline_vertices[(i + 1) * 3 + 2];
+    }
+
+    Point n;
+    Point t;
+    if (i == num_spline_points - 1)
+    {
+      t = normalize(p - next_p);
+    }
+    else
+    {
+      t = normalize(next_p - p);
+    }
+    Point b;
+    if (i == 0)
+    {
+      n.x_ = 0;
+      n.y_ = 1;
+      n.z_ = 0;
+    }
+    else
+    {
+      n = normalize(crossProduct(spline_b[i - 1], t));
+    }
+    b = normalize(crossProduct(t, n));
+
+    spline_n.push_back(n);
+    spline_t.push_back(t);
+    spline_b.push_back(b);
+
+    Point v0;
+    v0.x_ = p.x_ + alpha * (-n.x_ + b.x_);
+    v0.y_ = p.y_ + alpha * (-n.y_ + b.y_);
+    v0.z_ = p.z_ + alpha * (-n.z_ + b.z_);
+
+    cross_section_vertices.push_back(v0.x_);
+    cross_section_vertices.push_back(v0.y_);
+    cross_section_vertices.push_back(v0.z_);
+
+    Point v1;
+    v1.x_ = p.x_ + alpha * (n.x_ + b.x_);
+    v1.y_ = p.y_ + alpha * (n.y_ + b.y_);
+    v1.z_ = p.z_ + alpha * (n.z_ + b.z_);
+
+    cross_section_vertices.push_back(v1.x_);
+    cross_section_vertices.push_back(v1.y_);
+    cross_section_vertices.push_back(v1.z_);
+
+    Point v2;
+    v2.x_ = p.x_ + alpha * (n.x_ - b.x_);
+    v2.y_ = p.y_ + alpha * (n.y_ - b.y_);
+    v2.z_ = p.z_ + alpha * (n.z_ - b.z_);
+
+    cross_section_vertices.push_back(v2.x_);
+    cross_section_vertices.push_back(v2.y_);
+    cross_section_vertices.push_back(v2.z_);
+
+    Point v3;
+    v3.x_ = p.x_ + alpha * (-n.x_ - b.x_);
+    v3.y_ = p.y_ + alpha * (-n.y_ - b.y_);
+    v3.z_ = p.z_ + alpha * (-n.z_ - b.z_);
+
+    cross_section_vertices.push_back(v3.x_);
+    cross_section_vertices.push_back(v3.y_);
+    cross_section_vertices.push_back(v3.z_);
+
+    //    std::cout << "p " << p.x_ << " " << p.y_ << " " << p.z_ << std::endl;
+    //    std::cout << "v0 " << v0.x_ << " " << v0.y_ << " " << v0.z_ << std::endl;
+    //    std::cout << "v1 " << v1.x_ << " " << v1.y_ << " " << v1.z_ << std::endl;
+    //    std::cout << "v2 " << v2.x_ << " " << v2.y_ << " " << v2.z_ << std::endl;
+    //    std::cout << "v3 " << v3.x_ << " " << v3.y_ << " " << v3.z_ << std::endl;
+
+    // starting face
+    size_t index = i * 4;
+    if (i == 0)
+    {
+      cross_section_indices.push_back(index);
+      cross_section_indices.push_back(index + 1);
+      cross_section_indices.push_back(index + 2);
+
+      cross_section_indices.push_back(index + 2);
+      cross_section_indices.push_back(index + 3);
+      cross_section_indices.push_back(index);
+    }
+    // 4 faces
+    if (i < num_spline_points - 1)
+    {
+      cross_section_indices.push_back(index);
+      cross_section_indices.push_back(index + 4);
+      cross_section_indices.push_back(index + 5);
+
+      cross_section_indices.push_back(index + 5);
+      cross_section_indices.push_back(index + 1);
+      cross_section_indices.push_back(index);
+
+      cross_section_indices.push_back(index + 1);
+      cross_section_indices.push_back(index + 5);
+      cross_section_indices.push_back(index + 6);
+
+      cross_section_indices.push_back(index + 6);
+      cross_section_indices.push_back(index + 2);
+      cross_section_indices.push_back(index + 1);
+
+      cross_section_indices.push_back(index + 2);
+      cross_section_indices.push_back(index + 6);
+      cross_section_indices.push_back(index + 7);
+
+      cross_section_indices.push_back(index + 7);
+      cross_section_indices.push_back(index + 3);
+      cross_section_indices.push_back(index + 2);
+
+      cross_section_indices.push_back(index + 3);
+      cross_section_indices.push_back(index + 7);
+      cross_section_indices.push_back(index);
+
+      cross_section_indices.push_back(index);
+      cross_section_indices.push_back(index + 4);
+      cross_section_indices.push_back(index + 3);
+    }
+
+    if (i == num_spline_points - 1)
+    {
+      cross_section_indices.push_back(index);
+      cross_section_indices.push_back(index + 3);
+      cross_section_indices.push_back(index + 2);
+
+      cross_section_indices.push_back(index + 2);
+      cross_section_indices.push_back(index + 1);
+      cross_section_indices.push_back(index);
+    }
+
+  }
+
+  assert(spline_n.size() == num_spline_points && spline_n.size() == spline_t.size() && spline_t.size() == spline_b.size());
+  assert(cross_section_vertices.size() == num_spline_points * 4 * 3);
+  std::cout << "ggg cross_section_indices.size() " << cross_section_indices.size() << std::endl;
+  std::cout << "ggg " << (2 + (num_spline_points - 1) * 4) * 2 * 3 << std::endl;
+  //  assert(cross_section_indices.size() == (2 + (num_spline_points - 1) * 4) * 2 * 3);
+
+
+  // Generate and bind Vertex Array Object
+  glGenVertexArrays(1, &cross_section_vao);
+  glBindVertexArray(cross_section_vao);
+
+  // Generate, bind and send vertex Vertex Buffer Object to shaders
+  GLuint vertexBufferName;
+  glGenBuffers(1, &vertexBufferName);
+  glBindBuffer(GL_ARRAY_BUFFER, vertexBufferName);
+  glBufferData(GL_ARRAY_BUFFER, cross_section_vertices.size() * sizeof (GLfloat), &cross_section_vertices[0], GL_STATIC_DRAW);
+  GLuint posLocation = glGetAttribLocation(basic_pipeline.GetProgramHandle(), "position");
+  glVertexAttribPointer(posLocation, 3, GL_FLOAT, GL_FALSE, 0, 0);
+  glEnableVertexArrayAttrib(cross_section_vao, posLocation);
+
+  std::vector<GLfloat> colors;
+  for (size_t i = 0; i < cross_section_vertices.size() / 3; i++)
+  {
+    colors.push_back(1.0);
+    colors.push_back(1.0);
+    colors.push_back(1.0);
+    colors.push_back(0.0);
+  }
+
+  // Generate, bind and send color Vertex Buffer Object to shaders
+  GLuint colorBufferName;
+  glGenBuffers(1, &colorBufferName);
+  glBindBuffer(GL_ARRAY_BUFFER, colorBufferName);
+  glBufferData(GL_ARRAY_BUFFER, colors.size() * sizeof (GLfloat), &colors[0], GL_STATIC_DRAW);
+  GLuint colLocation = glGetAttribLocation(basic_pipeline.GetProgramHandle(), "color");
+  glVertexAttribPointer(colLocation, 4, GL_FLOAT, GL_FALSE, 0, 0);
+  glEnableVertexArrayAttrib(cross_section_vao, colLocation);
+
+  // Generate and bind elements Vertex Buffer Object
+  GLuint elementbuffer;
+  glGenBuffers(1, &elementbuffer);
+  glBindBuffer(GL_ELEMENT_ARRAY_BUFFER, elementbuffer);
+  glBufferData(GL_ELEMENT_ARRAY_BUFFER, cross_section_indices.size() * sizeof (GLuint), &cross_section_indices[0], GL_STATIC_DRAW);
+}
+
+void setCamera()
+{
+  GLfloat modelViewMatrix[16];
+  openGLMatrix.SetMatrixMode(OpenGLMatrix::ModelView);
+  openGLMatrix.LoadIdentity();
+
+  Point current_up = spline_n[current_spline_point_index];
+  Point current_eye;
+  current_eye.x_ = spline_vertices[current_spline_point_index * 3];
+  current_eye.y_ = spline_vertices[current_spline_point_index * 3 + 1];
+  current_eye.z_ = spline_vertices[current_spline_point_index * 3 + 2];
+  current_eye = current_eye + spline_n[current_spline_point_index];
+  Point current_focus = current_eye + spline_t[current_spline_point_index];
+
+  //  openGLMatrix.LookAt(current_eye.x_, current_eye.y_, current_eye.z_, current_focus.x_, current_focus.y_, current_focus.z_, current_up.x_, current_up.y_, current_up.z_);
+  //  std::cout << "current_eye " << current_eye.x_ << " " << current_eye.y_ << " " << current_eye.z_ << std::endl;
+  openGLMatrix.LookAt(0, 0, 50, 0, 0, 0, 0, 1, 0);
+  current_spline_point_index++;
+  //  current_u += 0.1;
+}
+
+void displayFunc()
+{
+  // Clear the scene
+  glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
+
+  setCamera();
+
+  // Draw cube map
+  drawCubeMap();
+  drawCrossSection();
+  //  drawSplineCurve();
 
   //  texture_pipeline.Bind();
   //  glBindVertexArray(texture_vao);
@@ -630,14 +888,9 @@ void initScene()
   GLuint cube_map_posLocation = glGetAttribLocation(cube_map_pipeline.GetProgramHandle(), "position");
   glVertexAttribPointer(cube_map_posLocation, 3, GL_FLOAT, GL_FALSE, 0, 0);
   glEnableVertexArrayAttrib(cube_map_vao, cube_map_posLocation);
-  
-//  GLuint cube_map_elementbuffer;
-//  glGenBuffers(1, &cube_map_elementbuffer);
-//  glBindBuffer(GL_ELEMENT_ARRAY_BUFFER, cube_map_elementbuffer);
-//  glBufferData(GL_ELEMENT_ARRAY_BUFFER, cube_map_indices.size() * sizeof (unsigned int), &cube_map_indices[0], GL_STATIC_DRAW);
 
   std::vector<std::string> file_names = {"./arrakisday_rt.jpg", "./arrakisday_lf.jpg", "./arrakisday_dn.jpg", "./arrakisday_up.jpg", "./arrakisday_bk.jpg", "./arrakisday_ft.jpg"};
-//  std::vector<std::string> file_names = {"./right.jpg", "./left.jpg", "./bottom.jpg", "./top.jpg", "./back.jpg", "./front.jpg"};
+  //  std::vector<std::string> file_names = {"./right.jpg", "./left.jpg", "./bottom.jpg", "./top.jpg", "./back.jpg", "./front.jpg"};
 
   if (initCubeMap(file_names) != 0)
   {
@@ -645,7 +898,6 @@ void initScene()
   }
   //
 
-  std::vector<GLfloat> vertices;
   for (size_t i = 0; i < splines.size(); i++)
   {
     Point p0 = splines[i].points[0];
@@ -679,7 +931,7 @@ void initScene()
       //      std::cout << "p3: " << p3.x_ << " " << p3.y_ << " " << p3.z_ << std::endl;
       //      std::cout << "p4: " << p4.x_ << " " << p4.y_ << " " << p4.z_ << std::endl;
       CatmullRom catmull_rom(p1, p2, p3, p4, 0.5);
-      std::vector<Point> spline_points = catmull_rom.subDivide(0.0, 1.0, 0.5);
+      std::vector<Point> spline_points = catmull_rom.subDivide(0.0, 1.0, 0.05);
 
       // remove repeated points 
       if (j != 0)
@@ -689,19 +941,19 @@ void initScene()
 
       for (const auto &p : spline_points)
       {
-        vertices.push_back(p.x_);
-        vertices.push_back(p.y_);
-        vertices.push_back(p.z_);
+        spline_vertices.push_back(p.x_);
+        spline_vertices.push_back(p.y_);
+        spline_vertices.push_back(p.z_);
         //        std::cout << p.x_ << " " << p.y_ << " " << p.z_ << std::endl;
         g_num_spline_vertices.back()++;
       }
     }
   }
 
-  numVertices = vertices.size() / 3;
-  std::cout << "numVertices: " << numVertices << std::endl;
+  num_spline_points = spline_vertices.size() / 3;
+  std::cout << "num_spline_points: " << num_spline_points << std::endl;
   std::vector<GLfloat> colors;
-  for (size_t i = 0; i < numVertices; i++)
+  for (size_t i = 0; i < num_spline_points; i++)
   {
     colors.push_back(1.0);
     colors.push_back(1.0);
@@ -712,6 +964,8 @@ void initScene()
   // Create shaders
   basic_pipeline.Init("../openGLHelper-starterCode", "basic.vertexShader.glsl", "basic.fragmentShader.glsl");
 
+  setCrossSectionVertices();
+
   // Generate and bind Vertex Array Object
   glGenVertexArrays(1, &basic_vao);
   glBindVertexArray(basic_vao);
@@ -720,7 +974,7 @@ void initScene()
   GLuint vertexBufferName;
   glGenBuffers(1, &vertexBufferName);
   glBindBuffer(GL_ARRAY_BUFFER, vertexBufferName);
-  glBufferData(GL_ARRAY_BUFFER, vertices.size() * sizeof (GLfloat), &vertices[0], GL_STATIC_DRAW);
+  glBufferData(GL_ARRAY_BUFFER, spline_vertices.size() * sizeof (GLfloat), &spline_vertices[0], GL_STATIC_DRAW);
   GLuint posLocation = glGetAttribLocation(basic_pipeline.GetProgramHandle(), "position");
   glVertexAttribPointer(posLocation, 3, GL_FLOAT, GL_FALSE, 0, 0);
   glEnableVertexArrayAttrib(basic_vao, posLocation);

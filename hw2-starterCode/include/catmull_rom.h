@@ -13,6 +13,7 @@ public:
   virtual ~CatmullRom();
   
   Point splinePoint(const double &u);
+  Point splineTangent(const double &u);
   std::vector<Point> subDivide(const double &u_0, const double &u_1, const double &max_line_length);
 private:
   Point p1_, p2_, p3_, p4_;
