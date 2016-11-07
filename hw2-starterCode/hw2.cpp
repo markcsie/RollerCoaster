@@ -363,27 +363,14 @@ void drawCubeMap()
 {
   glDepthMask(GL_FALSE);
   cube_map_pipeline.Bind();
-  // ... Set view and projection matrix
   glBindVertexArray(cube_map_vao);
-
-  GLfloat projectionMatrix[16];
-  openGLMatrix.SetMatrixMode(OpenGLMatrix::Projection);
-  openGLMatrix.GetMatrix(projectionMatrix);
-  cube_map_pipeline.SetProjectionMatrix(projectionMatrix);
 
   // Set model view matrix for shaders
   openGLMatrix.SetMatrixMode(OpenGLMatrix::ModelView);
   openGLMatrix.PushMatrix();
 
-  //  openGLMatrix.LoadIdentity();
-  //  openGLMatrix.LookAt(0, 0, 50, 0, 0, 0, 0, 1, 0);
-
-  // T R S
-  openGLMatrix.Translate(landTranslate[0], landTranslate[1], landTranslate[2]);
-  openGLMatrix.Rotate(landRotate[0], 1, 0, 0);
-  openGLMatrix.Rotate(landRotate[1], 0, 1, 0);
-  openGLMatrix.Rotate(landRotate[2], 0, 0, 1);
-  openGLMatrix.Scale(landScale[0], -landScale[1], landScale[2]);
+  openGLMatrix.Rotate(90, 1, 0, 0);
+  openGLMatrix.Scale(1, -1, 1);
   GLfloat modelViewMatrix[16];
   openGLMatrix.GetMatrix(modelViewMatrix);
   cube_map_pipeline.SetModelViewMatrix(modelViewMatrix);
@@ -401,76 +388,17 @@ void drawCrossSection()
   basic_pipeline.Bind();
   glBindVertexArray(cross_section_vao);
 
-  // ... Set view and projection matrix
-  GLfloat projectionMatrix[16];
-  openGLMatrix.SetMatrixMode(OpenGLMatrix::Projection);
-  openGLMatrix.GetMatrix(projectionMatrix);
-  basic_pipeline.SetProjectionMatrix(projectionMatrix);
-
   // Set model view matrix for shaders
   openGLMatrix.SetMatrixMode(OpenGLMatrix::ModelView);
-  openGLMatrix.PushMatrix();
 
-  //  openGLMatrix.LoadIdentity();
-  //  openGLMatrix.LookAt(0, 0, 50, 0, 0, 0, 0, 1, 0);
-
-  // T R S
-  openGLMatrix.Translate(landTranslate[0], landTranslate[1], landTranslate[2]);
-  openGLMatrix.Rotate(landRotate[0], 1, 0, 0);
-  openGLMatrix.Rotate(landRotate[1], 0, 1, 0);
-  openGLMatrix.Rotate(landRotate[2], 0, 0, 1);
-  openGLMatrix.Scale(landScale[0], landScale[1], landScale[2]);
   GLfloat modelViewMatrix[16];
   openGLMatrix.GetMatrix(modelViewMatrix);
   basic_pipeline.SetModelViewMatrix(modelViewMatrix);
 
-  //  glPolygonMode(GL_FRONT_AND_BACK, GL_LINE);
   glDrawElements(GL_TRIANGLES, cross_section_indices.size(), GL_UNSIGNED_INT, (const GLvoid *) 0);
-  //  glDrawArrays(GL_POINTS, 0, 6);
+//    glDrawArrays(GL_POINTS, 0, 3);
 
   glBindVertexArray(0);
-  openGLMatrix.PopMatrix();
-}
-
-void drawSplineCurve()
-{
-  basic_pipeline.Bind();
-  glBindVertexArray(basic_vao);
-  // Set projection matrix for shaders
-  GLfloat projectionMatrix[16];
-  openGLMatrix.SetMatrixMode(OpenGLMatrix::Projection);
-  openGLMatrix.GetMatrix(projectionMatrix);
-  basic_pipeline.SetProjectionMatrix(projectionMatrix);
-  //
-  // Set model view matrix for shaders
-  openGLMatrix.SetMatrixMode(OpenGLMatrix::ModelView);
-  openGLMatrix.PushMatrix();
-  //  openGLMatrix.LoadIdentity();
-  //  openGLMatrix.LookAt(0, 0, 50, 0, 0, 0, 0, 1, 0);
-
-  // T R S
-  openGLMatrix.Translate(landTranslate[0], landTranslate[1], landTranslate[2]);
-  openGLMatrix.Rotate(landRotate[0], 1, 0, 0);
-  openGLMatrix.Rotate(landRotate[1], 0, 1, 0);
-  openGLMatrix.Rotate(landRotate[2], 0, 0, 1);
-  openGLMatrix.Scale(landScale[0], landScale[1], landScale[2]);
-  GLfloat modelViewMatrix[16];
-  openGLMatrix.GetMatrix(modelViewMatrix);
-  basic_pipeline.SetModelViewMatrix(modelViewMatrix);
-
-  GLint index = 0;
-  for (size_t i = 0; i < g_num_spline_vertices.size(); i++)
-  {
-    //    std::cout << "g_num_spline_vertices[i] " << g_num_spline_vertices[i] << std::endl;
-    glDrawArrays(GL_LINE_STRIP, index, g_num_spline_vertices[i]);
-    index += g_num_spline_vertices[i];
-
-    openGLMatrix.Translate(5.0, 0.0, 0.0);
-    openGLMatrix.GetMatrix(modelViewMatrix);
-    basic_pipeline.SetModelViewMatrix(modelViewMatrix);
-  }
-
-  openGLMatrix.PopMatrix();
 }
 
 void setCrossSectionVertices()
@@ -510,8 +438,8 @@ void setCrossSectionVertices()
     if (i == 0)
     {
       n.x_ = 0;
-      n.y_ = 1;
-      n.z_ = 0;
+      n.y_ = 0;
+      n.z_ = 1;
     }
     else
     {
@@ -673,10 +601,6 @@ void setCrossSectionVertices()
 
 void setCamera()
 {
-  GLfloat modelViewMatrix[16];
-  openGLMatrix.SetMatrixMode(OpenGLMatrix::ModelView);
-  openGLMatrix.LoadIdentity();
-
   Point current_up = spline_n[current_spline_point_index];
   Point current_eye;
   current_eye.x_ = spline_vertices[current_spline_point_index * 3];
@@ -685,9 +609,17 @@ void setCamera()
   current_eye = current_eye + spline_n[current_spline_point_index];
   Point current_focus = current_eye + spline_t[current_spline_point_index];
 
-  //  openGLMatrix.LookAt(current_eye.x_, current_eye.y_, current_eye.z_, current_focus.x_, current_focus.y_, current_focus.z_, current_up.x_, current_up.y_, current_up.z_);
-  //  std::cout << "current_eye " << current_eye.x_ << " " << current_eye.y_ << " " << current_eye.z_ << std::endl;
-  openGLMatrix.LookAt(0, 0, 50, 0, 0, 0, 0, 1, 0);
+//  
+//  openGLMatrix.Rotate(90, 1, 0, 0);
+    openGLMatrix.LookAt(current_eye.x_, current_eye.y_, current_eye.z_, current_focus.x_, current_focus.y_, current_focus.z_, current_up.x_, current_up.y_, current_up.z_);
+    
+//  std::cout << "current_eye " << current_eye.x_ << " " << current_eye.y_ << " " << current_eye.z_ << std::endl;
+//  std::cout << "current_focus " << current_focus.x_ << " " << current_focus.y_ << " " << current_focus.z_ << std::endl;
+//  std::cout << "current_up " << current_up.x_ << " " << current_up.y_ << " " << current_up.z_ << std::endl;
+//  openGLMatrix.LookAt(current_eye.x_, current_eye.y_, current_eye.z_, current_focus.x_, current_focus.y_, current_focus.z_, 0, 1, 0);
+//  openGLMatrix.Rotate(90, 1, 0, 0);
+//  openGLMatrix.LookAt(0, 0, 50, 0, 0, 0, 0, 1, 0);
+  
   current_spline_point_index++;
   //  current_u += 0.1;
 }
@@ -696,13 +628,40 @@ void displayFunc()
 {
   // Clear the scene
   glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
+  
+  GLfloat projectionMatrix[16];
+  openGLMatrix.SetMatrixMode(OpenGLMatrix::Projection);
+  openGLMatrix.GetMatrix(projectionMatrix);
+  basic_pipeline.Bind();
+  basic_pipeline.SetProjectionMatrix(projectionMatrix);
+  cube_map_pipeline.Bind();
+  cube_map_pipeline.SetProjectionMatrix(projectionMatrix);
 
+  openGLMatrix.SetMatrixMode(OpenGLMatrix::ModelView);
+  openGLMatrix.LoadIdentity();
   setCamera();
-
-  // Draw cube map
+  
+  
+  // interactive viewpoint
+  openGLMatrix.SetMatrixMode(OpenGLMatrix::ModelView);
+  openGLMatrix.Translate(landTranslate[0], landTranslate[1], landTranslate[2]);
+  openGLMatrix.Rotate(landRotate[0], 1, 0, 0);
+  openGLMatrix.Rotate(landRotate[1], 0, 1, 0);
+  openGLMatrix.Rotate(landRotate[2], 0, 0, 1);
+  openGLMatrix.Scale(landScale[0], landScale[1], landScale[2]);
+  
   drawCubeMap();
-  drawCrossSection();
-  //  drawSplineCurve();
+  
+  // Draw cube map
+//  openGLMatrix.PushMatrix();
+//  drawCrossSection();
+//  openGLMatrix.Rotate(-90, 1, 0, 0);
+  drawCrossSection();  
+ 
+//  openGLMatrix.PopMatrix();
+  
+  
+  
 
   //  texture_pipeline.Bind();
   //  glBindVertexArray(texture_vao);
@@ -732,7 +691,7 @@ void reshapeFunc(int w, int h)
   // Setup perspective matrix
   openGLMatrix.SetMatrixMode(OpenGLMatrix::Projection);
   openGLMatrix.LoadIdentity();
-  openGLMatrix.Perspective(90.0, 1.0 * w / h, 0.01, 1000.0);
+  openGLMatrix.Perspective(90.0, 1.0 * w / h, 0.01, 2000.0);
   openGLMatrix.SetMatrixMode(OpenGLMatrix::ModelView);
 }
 
@@ -854,6 +813,7 @@ void keyboardFunc(unsigned char key, int x, int y)
       break;
     case ' ':
       // Reset
+      current_spline_point_index = 0;
       std::cout << "You pressed the spacebar." << std::endl;
       std::fill(landRotate.begin(), landRotate.end(), 0.0f);
       std::fill(landTranslate.begin(), landTranslate.end(), 0.0f);
@@ -877,7 +837,7 @@ void initScene()
 
   for (auto &f : cube_map_vertices)
   {
-    f *= 100;
+    f *= 1000;
   }
 
   // Generate, bind and send vertex Vertex Buffer Object to shaders
@@ -931,7 +891,7 @@ void initScene()
       //      std::cout << "p3: " << p3.x_ << " " << p3.y_ << " " << p3.z_ << std::endl;
       //      std::cout << "p4: " << p4.x_ << " " << p4.y_ << " " << p4.z_ << std::endl;
       CatmullRom catmull_rom(p1, p2, p3, p4, 0.5);
-      std::vector<Point> spline_points = catmull_rom.subDivide(0.0, 1.0, 0.05);
+      std::vector<Point> spline_points = catmull_rom.subDivide(0.0, 1.0, 0.10);
 
       // remove repeated points 
       if (j != 0)
