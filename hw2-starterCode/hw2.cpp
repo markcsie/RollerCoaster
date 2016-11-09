@@ -18,9 +18,7 @@
 #include "imageIO.h"
 
 #include "include/catmull_rom.h"
-
-// spline struct 
-// contains how many control points the spline has, and an array of control points 
+#include "include/spline.h"
 
 std::vector<GLfloat> cube_map_vertices = {
   // Positions          
@@ -67,18 +65,9 @@ std::vector<GLfloat> cube_map_vertices = {
   1.0f, -1.0f, 1.0f
 };
 
-struct Spline
-{
-  int numControlPoints;
-  std::vector<Point> points;
-};
 
-//double current_u = 0;
+
 size_t current_spline_point_index = 0;
-//Point current_eye;
-//Point current_focus;
-//Point current_up;
-//Point current_b;
 
 // the spline array 
 std::vector<Spline> splines;
@@ -87,12 +76,15 @@ std::vector<Point> spline_n;
 std::vector<Point> spline_t;
 std::vector<Point> spline_b;
 const double alpha = 0.5;
+const double beta = 0.5;
+const double cross_section_width = 2.0;
 // total number of splines 
 GLsizei numSplines;
 std::vector<GLsizei> g_num_spline_vertices;
 GLsizei num_spline_points;
 
-std::vector<GLfloat> cross_section_vertices;
+std::vector<GLfloat> left_cross_section_vertices;
+std::vector<GLfloat> right_cross_section_vertices;
 std::vector<GLuint> cross_section_indices;
 
 int mousePos[2]; // x,y coordinate of the mouse position
@@ -119,11 +111,11 @@ char windowTitle[512] = "CSCI 420 homework II";
 OpenGLMatrix openGLMatrix;
 
 BasicPipelineProgram basic_pipeline;
-GLuint basic_vao;
-GLuint cross_section_vao;
+GLuint spline_vao;
+GLuint left_cross_section_vao;
+GLuint right_cross_section_vao;
 
 BasicPipelineProgram texture_pipeline;
-GLuint texture_vao;
 
 BasicPipelineProgram cube_map_pipeline;
 GLuint cube_map_vao;
@@ -171,7 +163,6 @@ int loadSplines(char * argv)
     // allocate memory for all the points
     splines[j].points.clear();
     splines[j].points.resize(iLength);
-    splines[j].numControlPoints = iLength;
 
     // saves the data to the struct
     while (fscanf(fileSpline, "%lf %lf %lf",
@@ -386,7 +377,7 @@ void drawCubeMap()
 void drawCrossSection()
 {
   basic_pipeline.Bind();
-  glBindVertexArray(cross_section_vao);
+  
 
   // Set model view matrix for shaders
   openGLMatrix.SetMatrixMode(OpenGLMatrix::ModelView);
@@ -394,9 +385,13 @@ void drawCrossSection()
   GLfloat modelViewMatrix[16];
   openGLMatrix.GetMatrix(modelViewMatrix);
   basic_pipeline.SetModelViewMatrix(modelViewMatrix);
-
+  // left track
+  glBindVertexArray(left_cross_section_vao);
   glDrawElements(GL_TRIANGLES, cross_section_indices.size(), GL_UNSIGNED_INT, (const GLvoid *) 0);
-//    glDrawArrays(GL_POINTS, 0, 3);
+
+  // right track
+  glBindVertexArray(right_cross_section_vao);
+  glDrawElements(GL_TRIANGLES, cross_section_indices.size(), GL_UNSIGNED_INT, (const GLvoid *) 0);
 
   glBindVertexArray(0);
 }
@@ -451,41 +446,78 @@ void setCrossSectionVertices()
     spline_t.push_back(t);
     spline_b.push_back(b);
 
-    Point v0;
-    v0.x_ = p.x_ + alpha * (-n.x_ + b.x_);
-    v0.y_ = p.y_ + alpha * (-n.y_ + b.y_);
-    v0.z_ = p.z_ + alpha * (-n.z_ + b.z_);
+    Point left_v0;
+    left_v0.x_ = p.x_ - alpha * n.x_ - beta * b.x_;
+    left_v0.y_ = p.y_ - alpha * n.y_ - beta * b.y_;
+    left_v0.z_ = p.z_ - alpha * n.z_ - beta * b.z_;
 
-    cross_section_vertices.push_back(v0.x_);
-    cross_section_vertices.push_back(v0.y_);
-    cross_section_vertices.push_back(v0.z_);
+    left_cross_section_vertices.push_back(left_v0.x_);
+    left_cross_section_vertices.push_back(left_v0.y_);
+    left_cross_section_vertices.push_back(left_v0.z_);
 
-    Point v1;
-    v1.x_ = p.x_ + alpha * (n.x_ + b.x_);
-    v1.y_ = p.y_ + alpha * (n.y_ + b.y_);
-    v1.z_ = p.z_ + alpha * (n.z_ + b.z_);
+    Point left_v1;
+    left_v1.x_ = p.x_ + alpha * n.x_ - beta * b.x_;
+    left_v1.y_ = p.y_ + alpha * n.y_ - beta * b.y_;
+    left_v1.z_ = p.z_ + alpha * n.z_ - beta * b.z_;
 
-    cross_section_vertices.push_back(v1.x_);
-    cross_section_vertices.push_back(v1.y_);
-    cross_section_vertices.push_back(v1.z_);
+    left_cross_section_vertices.push_back(left_v1.x_);
+    left_cross_section_vertices.push_back(left_v1.y_);
+    left_cross_section_vertices.push_back(left_v1.z_);
 
-    Point v2;
-    v2.x_ = p.x_ + alpha * (n.x_ - b.x_);
-    v2.y_ = p.y_ + alpha * (n.y_ - b.y_);
-    v2.z_ = p.z_ + alpha * (n.z_ - b.z_);
+    Point left_v2;
+    left_v2.x_ = p.x_ + alpha * n.x_ - cross_section_width * beta * b.x_;
+    left_v2.y_ = p.y_ + alpha * n.y_ - cross_section_width * beta * b.y_;
+    left_v2.z_ = p.z_ + alpha * n.z_ - cross_section_width * beta * b.z_;
 
-    cross_section_vertices.push_back(v2.x_);
-    cross_section_vertices.push_back(v2.y_);
-    cross_section_vertices.push_back(v2.z_);
+    left_cross_section_vertices.push_back(left_v2.x_);
+    left_cross_section_vertices.push_back(left_v2.y_);
+    left_cross_section_vertices.push_back(left_v2.z_);
 
-    Point v3;
-    v3.x_ = p.x_ + alpha * (-n.x_ - b.x_);
-    v3.y_ = p.y_ + alpha * (-n.y_ - b.y_);
-    v3.z_ = p.z_ + alpha * (-n.z_ - b.z_);
+    Point left_v3;
+    left_v3.x_ = p.x_ - alpha * n.x_ - cross_section_width * beta * b.x_;
+    left_v3.y_ = p.y_ - alpha * n.y_ - cross_section_width * beta * b.y_;
+    left_v3.z_ = p.z_ - alpha * n.z_ - cross_section_width * beta * b.z_;
 
-    cross_section_vertices.push_back(v3.x_);
-    cross_section_vertices.push_back(v3.y_);
-    cross_section_vertices.push_back(v3.z_);
+    left_cross_section_vertices.push_back(left_v3.x_);
+    left_cross_section_vertices.push_back(left_v3.y_);
+    left_cross_section_vertices.push_back(left_v3.z_);
+
+    // right
+    Point right_v0;
+    right_v0.x_ = p.x_ - alpha * n.x_ + cross_section_width * beta * b.x_;
+    right_v0.y_ = p.y_ - alpha * n.y_ + cross_section_width * beta * b.y_;
+    right_v0.z_ = p.z_ - alpha * n.z_ + cross_section_width * beta * b.z_;
+
+    right_cross_section_vertices.push_back(right_v0.x_);
+    right_cross_section_vertices.push_back(right_v0.y_);
+    right_cross_section_vertices.push_back(right_v0.z_);
+
+    Point right_v1;
+    right_v1.x_ = p.x_ + alpha * n.x_ + cross_section_width * beta * b.x_;
+    right_v1.y_ = p.y_ + alpha * n.y_ + cross_section_width * beta * b.y_;
+    right_v1.z_ = p.z_ + alpha * n.z_ + cross_section_width * beta * b.z_;
+
+    right_cross_section_vertices.push_back(right_v1.x_);
+    right_cross_section_vertices.push_back(right_v1.y_);
+    right_cross_section_vertices.push_back(right_v1.z_);
+
+    Point right_v2;
+    right_v2.x_ = p.x_ + alpha * n.x_ + beta * b.x_;
+    right_v2.y_ = p.y_ + alpha * n.y_ + beta * b.y_;
+    right_v2.z_ = p.z_ + alpha * n.z_ + beta * b.z_;
+
+    right_cross_section_vertices.push_back(right_v2.x_);
+    right_cross_section_vertices.push_back(right_v2.y_);
+    right_cross_section_vertices.push_back(right_v2.z_);
+
+    Point right_v3;
+    right_v3.x_ = p.x_ - alpha * n.x_ + beta * b.x_;
+    right_v3.y_ = p.y_ - alpha * n.y_ + beta * b.y_;
+    right_v3.z_ = p.z_ - alpha * n.z_ + beta * b.z_;
+
+    right_cross_section_vertices.push_back(right_v3.x_);
+    right_cross_section_vertices.push_back(right_v3.y_);
+    right_cross_section_vertices.push_back(right_v3.z_);
 
     //    std::cout << "p " << p.x_ << " " << p.y_ << " " << p.z_ << std::endl;
     //    std::cout << "v0 " << v0.x_ << " " << v0.y_ << " " << v0.z_ << std::endl;
@@ -551,31 +583,10 @@ void setCrossSectionVertices()
       cross_section_indices.push_back(index + 1);
       cross_section_indices.push_back(index);
     }
-
   }
-
-  assert(spline_n.size() == num_spline_points && spline_n.size() == spline_t.size() && spline_t.size() == spline_b.size());
-  assert(cross_section_vertices.size() == num_spline_points * 4 * 3);
-  std::cout << "ggg cross_section_indices.size() " << cross_section_indices.size() << std::endl;
-  std::cout << "ggg " << (2 + (num_spline_points - 1) * 4) * 2 * 3 << std::endl;
-  //  assert(cross_section_indices.size() == (2 + (num_spline_points - 1) * 4) * 2 * 3);
-
-
-  // Generate and bind Vertex Array Object
-  glGenVertexArrays(1, &cross_section_vao);
-  glBindVertexArray(cross_section_vao);
-
-  // Generate, bind and send vertex Vertex Buffer Object to shaders
-  GLuint vertexBufferName;
-  glGenBuffers(1, &vertexBufferName);
-  glBindBuffer(GL_ARRAY_BUFFER, vertexBufferName);
-  glBufferData(GL_ARRAY_BUFFER, cross_section_vertices.size() * sizeof (GLfloat), &cross_section_vertices[0], GL_STATIC_DRAW);
-  GLuint posLocation = glGetAttribLocation(basic_pipeline.GetProgramHandle(), "position");
-  glVertexAttribPointer(posLocation, 3, GL_FLOAT, GL_FALSE, 0, 0);
-  glEnableVertexArrayAttrib(cross_section_vao, posLocation);
-
+  
   std::vector<GLfloat> colors;
-  for (size_t i = 0; i < cross_section_vertices.size() / 3; i++)
+  for (size_t i = 0; i < left_cross_section_vertices.size() / 3; i++)
   {
     colors.push_back(1.0);
     colors.push_back(1.0);
@@ -583,19 +594,69 @@ void setCrossSectionVertices()
     colors.push_back(0.0);
   }
 
+  assert(spline_n.size() == num_spline_points && spline_n.size() == spline_t.size() && spline_t.size() == spline_b.size());
+  assert(left_cross_section_vertices.size() == num_spline_points * 4 * 3);
+  assert(right_cross_section_vertices.size() == num_spline_points * 4 * 3);
+  std::cout << "ggg left_cross_section_vertices.size() " << left_cross_section_vertices.size() << std::endl;
+  std::cout << "ggg right_cross_section_vertices.size() " << right_cross_section_vertices.size() << std::endl;
+  std::cout << "ggg " << (2 + (num_spline_points - 1) * 4) * 2 * 3 << std::endl;
+  assert(cross_section_indices.size() == (2 + (num_spline_points - 1) * 4) * 2 * 3);
+
+  // Generate and bind Vertex Array Object
+  glGenVertexArrays(1, &left_cross_section_vao);
+  glBindVertexArray(left_cross_section_vao);
+
+  // Generate, bind and send vertex Vertex Buffer Object to shaders
+  GLuint left_vertexBufferName;
+  glGenBuffers(1, &left_vertexBufferName);
+  glBindBuffer(GL_ARRAY_BUFFER, left_vertexBufferName);
+  glBufferData(GL_ARRAY_BUFFER, left_cross_section_vertices.size() * sizeof (GLfloat), &left_cross_section_vertices[0], GL_STATIC_DRAW);
+  GLuint left_posLocation = glGetAttribLocation(basic_pipeline.GetProgramHandle(), "position");
+  glVertexAttribPointer(left_posLocation, 3, GL_FLOAT, GL_FALSE, 0, 0);
+  glEnableVertexArrayAttrib(left_cross_section_vao, left_posLocation);
+
   // Generate, bind and send color Vertex Buffer Object to shaders
-  GLuint colorBufferName;
-  glGenBuffers(1, &colorBufferName);
-  glBindBuffer(GL_ARRAY_BUFFER, colorBufferName);
+  GLuint left_colorBufferName;
+  glGenBuffers(1, &left_colorBufferName);
+  glBindBuffer(GL_ARRAY_BUFFER, left_colorBufferName);
   glBufferData(GL_ARRAY_BUFFER, colors.size() * sizeof (GLfloat), &colors[0], GL_STATIC_DRAW);
-  GLuint colLocation = glGetAttribLocation(basic_pipeline.GetProgramHandle(), "color");
-  glVertexAttribPointer(colLocation, 4, GL_FLOAT, GL_FALSE, 0, 0);
-  glEnableVertexArrayAttrib(cross_section_vao, colLocation);
+  GLuint left_colLocation = glGetAttribLocation(basic_pipeline.GetProgramHandle(), "color");
+  glVertexAttribPointer(left_colLocation, 4, GL_FLOAT, GL_FALSE, 0, 0);
+  glEnableVertexArrayAttrib(left_cross_section_vao, left_colLocation);
 
   // Generate and bind elements Vertex Buffer Object
-  GLuint elementbuffer;
-  glGenBuffers(1, &elementbuffer);
-  glBindBuffer(GL_ELEMENT_ARRAY_BUFFER, elementbuffer);
+  GLuint left_elementbuffer;
+  glGenBuffers(1, &left_elementbuffer);
+  glBindBuffer(GL_ELEMENT_ARRAY_BUFFER, left_elementbuffer);
+  glBufferData(GL_ELEMENT_ARRAY_BUFFER, cross_section_indices.size() * sizeof (GLuint), &cross_section_indices[0], GL_STATIC_DRAW);
+  
+  // right
+  // Generate and bind Vertex Array Object
+  glGenVertexArrays(1, &right_cross_section_vao);
+  glBindVertexArray(right_cross_section_vao);
+
+  // Generate, bind and send vertex Vertex Buffer Object to shaders
+  GLuint right_vertexBufferName;
+  glGenBuffers(1, &right_vertexBufferName);
+  glBindBuffer(GL_ARRAY_BUFFER, right_vertexBufferName);
+  glBufferData(GL_ARRAY_BUFFER, right_cross_section_vertices.size() * sizeof (GLfloat), &right_cross_section_vertices[0], GL_STATIC_DRAW);
+  GLuint right_posLocation = glGetAttribLocation(basic_pipeline.GetProgramHandle(), "position");
+  glVertexAttribPointer(right_posLocation, 3, GL_FLOAT, GL_FALSE, 0, 0);
+  glEnableVertexArrayAttrib(right_cross_section_vao, right_posLocation);
+
+  // Generate, bind and send color Vertex Buffer Object to shaders
+  GLuint right_colorBufferName;
+  glGenBuffers(1, &right_colorBufferName);
+  glBindBuffer(GL_ARRAY_BUFFER, right_colorBufferName);
+  glBufferData(GL_ARRAY_BUFFER, colors.size() * sizeof (GLfloat), &colors[0], GL_STATIC_DRAW);
+  GLuint right_colLocation = glGetAttribLocation(basic_pipeline.GetProgramHandle(), "color");
+  glVertexAttribPointer(right_colLocation, 4, GL_FLOAT, GL_FALSE, 0, 0);
+  glEnableVertexArrayAttrib(right_cross_section_vao, right_colLocation);
+
+  // Generate and bind elements Vertex Buffer Object
+  GLuint right_elementbuffer;
+  glGenBuffers(1, &right_elementbuffer);
+  glBindBuffer(GL_ELEMENT_ARRAY_BUFFER, right_elementbuffer);
   glBufferData(GL_ELEMENT_ARRAY_BUFFER, cross_section_indices.size() * sizeof (GLuint), &cross_section_indices[0], GL_STATIC_DRAW);
 }
 
@@ -609,17 +670,17 @@ void setCamera()
   current_eye = current_eye + spline_n[current_spline_point_index];
   Point current_focus = current_eye + spline_t[current_spline_point_index];
 
-//  
-//  openGLMatrix.Rotate(90, 1, 0, 0);
-    openGLMatrix.LookAt(current_eye.x_, current_eye.y_, current_eye.z_, current_focus.x_, current_focus.y_, current_focus.z_, current_up.x_, current_up.y_, current_up.z_);
-    
-//  std::cout << "current_eye " << current_eye.x_ << " " << current_eye.y_ << " " << current_eye.z_ << std::endl;
-//  std::cout << "current_focus " << current_focus.x_ << " " << current_focus.y_ << " " << current_focus.z_ << std::endl;
-//  std::cout << "current_up " << current_up.x_ << " " << current_up.y_ << " " << current_up.z_ << std::endl;
-//  openGLMatrix.LookAt(current_eye.x_, current_eye.y_, current_eye.z_, current_focus.x_, current_focus.y_, current_focus.z_, 0, 1, 0);
-//  openGLMatrix.Rotate(90, 1, 0, 0);
+  //  
+  //  openGLMatrix.Rotate(90, 1, 0, 0);
+      openGLMatrix.LookAt(current_eye.x_, current_eye.y_, current_eye.z_, current_focus.x_, current_focus.y_, current_focus.z_, current_up.x_, current_up.y_, current_up.z_);
+
+  //  std::cout << "current_eye " << current_eye.x_ << " " << current_eye.y_ << " " << current_eye.z_ << std::endl;
+  //  std::cout << "current_focus " << current_focus.x_ << " " << current_focus.y_ << " " << current_focus.z_ << std::endl;
+  //  std::cout << "current_up " << current_up.x_ << " " << current_up.y_ << " " << current_up.z_ << std::endl;
+  //  openGLMatrix.LookAt(current_eye.x_, current_eye.y_, current_eye.z_, current_focus.x_, current_focus.y_, current_focus.z_, 0, 1, 0);
+  //  openGLMatrix.Rotate(90, 1, 0, 0);
 //  openGLMatrix.LookAt(0, 0, 50, 0, 0, 0, 0, 1, 0);
-  
+
   current_spline_point_index++;
   //  current_u += 0.1;
 }
@@ -628,7 +689,7 @@ void displayFunc()
 {
   // Clear the scene
   glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
-  
+
   GLfloat projectionMatrix[16];
   openGLMatrix.SetMatrixMode(OpenGLMatrix::Projection);
   openGLMatrix.GetMatrix(projectionMatrix);
@@ -640,8 +701,8 @@ void displayFunc()
   openGLMatrix.SetMatrixMode(OpenGLMatrix::ModelView);
   openGLMatrix.LoadIdentity();
   setCamera();
-  
-  
+
+
   // interactive viewpoint
   openGLMatrix.SetMatrixMode(OpenGLMatrix::ModelView);
   openGLMatrix.Translate(landTranslate[0], landTranslate[1], landTranslate[2]);
@@ -649,19 +710,19 @@ void displayFunc()
   openGLMatrix.Rotate(landRotate[1], 0, 1, 0);
   openGLMatrix.Rotate(landRotate[2], 0, 0, 1);
   openGLMatrix.Scale(landScale[0], landScale[1], landScale[2]);
-  
+
   drawCubeMap();
-  
+
   // Draw cube map
-//  openGLMatrix.PushMatrix();
-//  drawCrossSection();
-//  openGLMatrix.Rotate(-90, 1, 0, 0);
-  drawCrossSection();  
- 
-//  openGLMatrix.PopMatrix();
-  
-  
-  
+  //  openGLMatrix.PushMatrix();
+  //  drawCrossSection();
+  //  openGLMatrix.Rotate(-90, 1, 0, 0);
+  drawCrossSection();
+
+  //  openGLMatrix.PopMatrix();
+
+
+
 
   //  texture_pipeline.Bind();
   //  glBindVertexArray(texture_vao);
@@ -861,11 +922,11 @@ void initScene()
   for (size_t i = 0; i < splines.size(); i++)
   {
     Point p0 = splines[i].points[0];
-    Point p_last = splines[i].points[splines[i].numControlPoints - 1];
+    Point p_last = splines[i].points[splines[i].points.size() - 1];
 
     Point p1, p2, p3, p4;
     g_num_spline_vertices.push_back(0);
-    for (size_t j = 0; j < splines[i].numControlPoints - 1; j++)
+    for (size_t j = 0; j < splines[i].points.size() - 1; j++)
     {
       if (j == 0)
       {
@@ -877,7 +938,7 @@ void initScene()
       }
       p2 = splines[i].points[j];
       p3 = splines[i].points[j + 1];
-      if (j == splines[i].numControlPoints - 2)
+      if (j == splines[i].points.size() - 2)
       {
         p4 = p_last;
       }
@@ -927,8 +988,8 @@ void initScene()
   setCrossSectionVertices();
 
   // Generate and bind Vertex Array Object
-  glGenVertexArrays(1, &basic_vao);
-  glBindVertexArray(basic_vao);
+  glGenVertexArrays(1, &spline_vao);
+  glBindVertexArray(spline_vao);
 
   // Generate, bind and send vertex Vertex Buffer Object to shaders
   GLuint vertexBufferName;
@@ -937,7 +998,7 @@ void initScene()
   glBufferData(GL_ARRAY_BUFFER, spline_vertices.size() * sizeof (GLfloat), &spline_vertices[0], GL_STATIC_DRAW);
   GLuint posLocation = glGetAttribLocation(basic_pipeline.GetProgramHandle(), "position");
   glVertexAttribPointer(posLocation, 3, GL_FLOAT, GL_FALSE, 0, 0);
-  glEnableVertexArrayAttrib(basic_vao, posLocation);
+  glEnableVertexArrayAttrib(spline_vao, posLocation);
 
   // Generate, bind and send color Vertex Buffer Object to shaders
   GLuint colorBufferName;
@@ -946,85 +1007,17 @@ void initScene()
   glBufferData(GL_ARRAY_BUFFER, colors.size() * sizeof (GLfloat), &colors[0], GL_STATIC_DRAW);
   GLuint colLocation = glGetAttribLocation(basic_pipeline.GetProgramHandle(), "color");
   glVertexAttribPointer(colLocation, 4, GL_FLOAT, GL_FALSE, 0, 0);
-  glEnableVertexArrayAttrib(basic_vao, colLocation);
+  glEnableVertexArrayAttrib(spline_vao, colLocation);
 
   // ====================objects with textures=====================
   texture_pipeline.Init("../openGLHelper-starterCode", "texture.vertexShader.glsl", "texture.fragmentShader.glsl");
-  GLuint ground_texture_id;
-  glGenTextures(1, &ground_texture_id);
-  if (initTexture("./grass.jpg", ground_texture_id) != 0)
-  {
-    std::cerr << "loading ground_texture error" << std::endl;
-    exit(EXIT_FAILURE);
-  }
-
-  // Generate and bind Vertex Array Object
-  glGenVertexArrays(1, &texture_vao);
-  glBindVertexArray(texture_vao);
-
-  setTextureUnit(GL_TEXTURE0);
-
-  std::vector<GLfloat> texture_vertices;
-  texture_vertices.push_back(-100.0);
-  texture_vertices.push_back(100.0);
-  texture_vertices.push_back(-10.0);
-
-  texture_vertices.push_back(-100.0);
-  texture_vertices.push_back(-100.0);
-  texture_vertices.push_back(-10.0);
-
-  texture_vertices.push_back(100.0);
-  texture_vertices.push_back(-100.0);
-  texture_vertices.push_back(-10.0);
-
-  texture_vertices.push_back(100.0);
-  texture_vertices.push_back(100.0);
-  texture_vertices.push_back(-10.0);
-
-  GLuint texture_vertexBufferName;
-  glGenBuffers(1, &texture_vertexBufferName);
-  glBindBuffer(GL_ARRAY_BUFFER, texture_vertexBufferName);
-  glBufferData(GL_ARRAY_BUFFER, texture_vertices.size() * sizeof (GLfloat), &texture_vertices[0], GL_STATIC_DRAW);
-  GLuint texture_posLocation = glGetAttribLocation(texture_pipeline.GetProgramHandle(), "position");
-  glVertexAttribPointer(texture_posLocation, 3, GL_FLOAT, GL_FALSE, 0, 0);
-  glEnableVertexArrayAttrib(texture_vao, texture_posLocation);
-
-  std::vector<GLfloat> uvData;
-  uvData.push_back(0.0);
-  uvData.push_back(1.0);
-
-  uvData.push_back(0.0);
-  uvData.push_back(0.0);
-
-  uvData.push_back(1.0);
-  uvData.push_back(0.0);
-
-  uvData.push_back(1.0);
-  uvData.push_back(1.0);
-  // Generate, bind and send uv Vertex Buffer Object to shaders for texture mapping
-  GLuint uvbuffer;
-  glGenBuffers(1, &uvbuffer);
-  glBindBuffer(GL_ARRAY_BUFFER, uvbuffer);
-  glBufferData(GL_ARRAY_BUFFER, uvData.size() * sizeof (GLfloat), &uvData[0], GL_STATIC_DRAW);
-  GLuint uvLocation = glGetAttribLocation(texture_pipeline.GetProgramHandle(), "texCoord");
-  glVertexAttribPointer(uvLocation, 2, GL_FLOAT, GL_FALSE, 0, 0);
-  glEnableVertexArrayAttrib(texture_vao, uvLocation);
-
-  // Generate and bind elements Vertex Buffer Object
-  std::vector<GLuint> texture_triangleIndices;
-  texture_triangleIndices.push_back(0);
-  texture_triangleIndices.push_back(1);
-  texture_triangleIndices.push_back(2);
-
-  texture_triangleIndices.push_back(2);
-  texture_triangleIndices.push_back(3);
-  texture_triangleIndices.push_back(0);
-
-  GLuint elementbuffer;
-  glGenBuffers(1, &elementbuffer);
-  glBindBuffer(GL_ELEMENT_ARRAY_BUFFER, elementbuffer);
-  glBufferData(GL_ELEMENT_ARRAY_BUFFER, texture_triangleIndices.size() * sizeof (unsigned int), &texture_triangleIndices[0], GL_STATIC_DRAW);
-
+  //  GLuint ground_texture_id;
+  //  glGenTextures(1, &ground_texture_id);
+  //  if (initTexture("./grass.jpg", ground_texture_id) != 0)
+  //  {
+  //    std::cerr << "loading ground_texture error" << std::endl;
+  //    exit(EXIT_FAILURE);
+  //  }
 
   // Enable depth testing so that the hidden scene will not be drawn.
   glEnable(GL_DEPTH_TEST);
@@ -1048,7 +1041,7 @@ int main(int argc, char ** argv)
   printf("Loaded %d spline(s).\n", numSplines);
   for (int i = 0; i < numSplines; i++)
   {
-    printf("Num control points in spline %d: %d.\n", i, splines[i].numControlPoints);
+    printf("Num control points in spline %d: %d.\n", i, splines[i].points.size());
   }
 
   // initialize openGL
