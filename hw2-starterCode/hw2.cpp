@@ -20,6 +20,8 @@
 #include "include/catmull_rom.h"
 #include "include/spline.h"
 
+#include <glm/ext.hpp>
+
 std::vector<GLfloat> cube_map_vertices = {
   // Positions          
   -1.0f, 1.0f, -1.0f,
@@ -72,12 +74,12 @@ size_t current_spline_point_index = 0;
 // the spline array 
 std::vector<Spline> splines;
 std::vector<GLfloat> spline_vertices;
-std::vector<Point> spline_n;
-std::vector<Point> spline_t;
-std::vector<Point> spline_b;
-const double alpha = 0.5;
-const double beta = 0.5;
-const double cross_section_width = 2.0;
+std::vector<glm::vec3> spline_n;
+std::vector<glm::vec3> spline_t;
+std::vector<glm::vec3> spline_b;
+const float alpha = 0.5;
+const float beta = 0.5;
+const float cross_section_width = 2.0;
 // total number of splines 
 GLsizei numSplines;
 std::vector<GLsizei> g_num_spline_vertices;
@@ -165,10 +167,10 @@ int loadSplines(char * argv)
     splines[j].points.resize(iLength);
 
     // saves the data to the struct
-    while (fscanf(fileSpline, "%lf %lf %lf",
-            &splines[j].points[i].x_,
-            &splines[j].points[i].y_,
-            &splines[j].points[i].z_) != EOF)
+    while (fscanf(fileSpline, "%f %f %f",
+            &splines[j].points[i].x,
+            &splines[j].points[i].y,
+            &splines[j].points[i].z) != EOF)
     {
       i++;
     }
@@ -400,27 +402,27 @@ void setCrossSectionVertices()
 {
   for (size_t i = 0; i < num_spline_points; i++)
   {
-    Point p;
-    p.x_ = spline_vertices[i * 3];
-    p.y_ = spline_vertices[i * 3 + 1];
-    p.z_ = spline_vertices[i * 3 + 2];
+    glm::vec3 p;
+    p.x = spline_vertices[i * 3];
+    p.y = spline_vertices[i * 3 + 1];
+    p.z = spline_vertices[i * 3 + 2];
 
-    Point next_p;
+    glm::vec3 next_p;
     if (i == num_spline_points - 1)
     {
-      next_p.x_ = spline_vertices[(i - 1) * 3];
-      next_p.y_ = spline_vertices[(i - 1) * 3 + 1];
-      next_p.z_ = spline_vertices[(i - 1) * 3 + 2];
+      next_p.x = spline_vertices[(i - 1) * 3];
+      next_p.y = spline_vertices[(i - 1) * 3 + 1];
+      next_p.z = spline_vertices[(i - 1) * 3 + 2];
     }
     else
     {
-      next_p.x_ = spline_vertices[(i + 1) * 3];
-      next_p.y_ = spline_vertices[(i + 1) * 3 + 1];
-      next_p.z_ = spline_vertices[(i + 1) * 3 + 2];
+      next_p.x = spline_vertices[(i + 1) * 3];
+      next_p.y = spline_vertices[(i + 1) * 3 + 1];
+      next_p.z = spline_vertices[(i + 1) * 3 + 2];
     }
 
-    Point n;
-    Point t;
+    glm::vec3 n;
+    glm::vec3 t;
     if (i == num_spline_points - 1)
     {
       t = normalize(p - next_p);
@@ -429,95 +431,71 @@ void setCrossSectionVertices()
     {
       t = normalize(next_p - p);
     }
-    Point b;
+    glm::vec3 b;
     if (i == 0)
     {
-      n.x_ = 0;
-      n.y_ = 0;
-      n.z_ = 1;
+      n.x = 0;
+      n.y = 0;
+      n.z = 1;
     }
     else
     {
-      n = normalize(crossProduct(spline_b[i - 1], t));
+      n = glm::normalize(glm::cross(spline_b[i - 1], t));
     }
-    b = normalize(crossProduct(t, n));
+    b = glm::normalize(glm::cross(t, n));
 
     spline_n.push_back(n);
     spline_t.push_back(t);
     spline_b.push_back(b);
 
-    Point left_v0;
-    left_v0.x_ = p.x_ - alpha * n.x_ - beta * b.x_;
-    left_v0.y_ = p.y_ - alpha * n.y_ - beta * b.y_;
-    left_v0.z_ = p.z_ - alpha * n.z_ - beta * b.z_;
+    glm::vec3 left_v0 = p - alpha * n - beta * b;
 
-    left_cross_section_vertices.push_back(left_v0.x_);
-    left_cross_section_vertices.push_back(left_v0.y_);
-    left_cross_section_vertices.push_back(left_v0.z_);
+    left_cross_section_vertices.push_back(left_v0.x);
+    left_cross_section_vertices.push_back(left_v0.y);
+    left_cross_section_vertices.push_back(left_v0.z);
 
-    Point left_v1;
-    left_v1.x_ = p.x_ + alpha * n.x_ - beta * b.x_;
-    left_v1.y_ = p.y_ + alpha * n.y_ - beta * b.y_;
-    left_v1.z_ = p.z_ + alpha * n.z_ - beta * b.z_;
+    glm::vec3 left_v1 = p + alpha * n - beta * b;
 
-    left_cross_section_vertices.push_back(left_v1.x_);
-    left_cross_section_vertices.push_back(left_v1.y_);
-    left_cross_section_vertices.push_back(left_v1.z_);
+    left_cross_section_vertices.push_back(left_v1.x);
+    left_cross_section_vertices.push_back(left_v1.y);
+    left_cross_section_vertices.push_back(left_v1.z);
 
-    Point left_v2;
-    left_v2.x_ = p.x_ + alpha * n.x_ - cross_section_width * beta * b.x_;
-    left_v2.y_ = p.y_ + alpha * n.y_ - cross_section_width * beta * b.y_;
-    left_v2.z_ = p.z_ + alpha * n.z_ - cross_section_width * beta * b.z_;
+    glm::vec3 left_v2 = p + alpha * n - cross_section_width * beta * b;
 
-    left_cross_section_vertices.push_back(left_v2.x_);
-    left_cross_section_vertices.push_back(left_v2.y_);
-    left_cross_section_vertices.push_back(left_v2.z_);
+    left_cross_section_vertices.push_back(left_v2.x);
+    left_cross_section_vertices.push_back(left_v2.y);
+    left_cross_section_vertices.push_back(left_v2.z);
 
-    Point left_v3;
-    left_v3.x_ = p.x_ - alpha * n.x_ - cross_section_width * beta * b.x_;
-    left_v3.y_ = p.y_ - alpha * n.y_ - cross_section_width * beta * b.y_;
-    left_v3.z_ = p.z_ - alpha * n.z_ - cross_section_width * beta * b.z_;
+    glm::vec3 left_v3 = p - alpha * n - cross_section_width * beta * b;
 
-    left_cross_section_vertices.push_back(left_v3.x_);
-    left_cross_section_vertices.push_back(left_v3.y_);
-    left_cross_section_vertices.push_back(left_v3.z_);
+    left_cross_section_vertices.push_back(left_v3.x);
+    left_cross_section_vertices.push_back(left_v3.y);
+    left_cross_section_vertices.push_back(left_v3.z);
 
     // right
-    Point right_v0;
-    right_v0.x_ = p.x_ - alpha * n.x_ + cross_section_width * beta * b.x_;
-    right_v0.y_ = p.y_ - alpha * n.y_ + cross_section_width * beta * b.y_;
-    right_v0.z_ = p.z_ - alpha * n.z_ + cross_section_width * beta * b.z_;
+    glm::vec3 right_v0 = p - alpha * n + cross_section_width * beta * b;
 
-    right_cross_section_vertices.push_back(right_v0.x_);
-    right_cross_section_vertices.push_back(right_v0.y_);
-    right_cross_section_vertices.push_back(right_v0.z_);
+    right_cross_section_vertices.push_back(right_v0.x);
+    right_cross_section_vertices.push_back(right_v0.y);
+    right_cross_section_vertices.push_back(right_v0.z);
 
-    Point right_v1;
-    right_v1.x_ = p.x_ + alpha * n.x_ + cross_section_width * beta * b.x_;
-    right_v1.y_ = p.y_ + alpha * n.y_ + cross_section_width * beta * b.y_;
-    right_v1.z_ = p.z_ + alpha * n.z_ + cross_section_width * beta * b.z_;
+    glm::vec3 right_v1 = p + alpha * n + cross_section_width * beta * b;
 
-    right_cross_section_vertices.push_back(right_v1.x_);
-    right_cross_section_vertices.push_back(right_v1.y_);
-    right_cross_section_vertices.push_back(right_v1.z_);
+    right_cross_section_vertices.push_back(right_v1.x);
+    right_cross_section_vertices.push_back(right_v1.y);
+    right_cross_section_vertices.push_back(right_v1.z);
 
-    Point right_v2;
-    right_v2.x_ = p.x_ + alpha * n.x_ + beta * b.x_;
-    right_v2.y_ = p.y_ + alpha * n.y_ + beta * b.y_;
-    right_v2.z_ = p.z_ + alpha * n.z_ + beta * b.z_;
+    glm::vec3 right_v2 = p + alpha * n + beta * b;
 
-    right_cross_section_vertices.push_back(right_v2.x_);
-    right_cross_section_vertices.push_back(right_v2.y_);
-    right_cross_section_vertices.push_back(right_v2.z_);
+    right_cross_section_vertices.push_back(right_v2.x);
+    right_cross_section_vertices.push_back(right_v2.y);
+    right_cross_section_vertices.push_back(right_v2.z);
 
-    Point right_v3;
-    right_v3.x_ = p.x_ - alpha * n.x_ + beta * b.x_;
-    right_v3.y_ = p.y_ - alpha * n.y_ + beta * b.y_;
-    right_v3.z_ = p.z_ - alpha * n.z_ + beta * b.z_;
+    glm::vec3 right_v3 = p - alpha * n + beta * b;
 
-    right_cross_section_vertices.push_back(right_v3.x_);
-    right_cross_section_vertices.push_back(right_v3.y_);
-    right_cross_section_vertices.push_back(right_v3.z_);
+    right_cross_section_vertices.push_back(right_v3.x);
+    right_cross_section_vertices.push_back(right_v3.y);
+    right_cross_section_vertices.push_back(right_v3.z);
 
     //    std::cout << "p " << p.x_ << " " << p.y_ << " " << p.z_ << std::endl;
     //    std::cout << "v0 " << v0.x_ << " " << v0.y_ << " " << v0.z_ << std::endl;
@@ -662,17 +640,17 @@ void setCrossSectionVertices()
 
 void setCamera()
 {
-  Point current_up = spline_n[current_spline_point_index];
-  Point current_eye;
-  current_eye.x_ = spline_vertices[current_spline_point_index * 3];
-  current_eye.y_ = spline_vertices[current_spline_point_index * 3 + 1];
-  current_eye.z_ = spline_vertices[current_spline_point_index * 3 + 2];
+  glm::vec3 current_up = spline_n[current_spline_point_index];
+  glm::vec3 current_eye;
+  current_eye.x = spline_vertices[current_spline_point_index * 3];
+  current_eye.y = spline_vertices[current_spline_point_index * 3 + 1];
+  current_eye.z = spline_vertices[current_spline_point_index * 3 + 2];
   current_eye = current_eye + spline_n[current_spline_point_index];
-  Point current_focus = current_eye + spline_t[current_spline_point_index];
+  glm::vec3 current_focus = current_eye + spline_t[current_spline_point_index];
 
   //  
   //  openGLMatrix.Rotate(90, 1, 0, 0);
-      openGLMatrix.LookAt(current_eye.x_, current_eye.y_, current_eye.z_, current_focus.x_, current_focus.y_, current_focus.z_, current_up.x_, current_up.y_, current_up.z_);
+      openGLMatrix.LookAt(current_eye.x, current_eye.y, current_eye.z, current_focus.x, current_focus.y, current_focus.z, current_up.x, current_up.y, current_up.z);
 
   //  std::cout << "current_eye " << current_eye.x_ << " " << current_eye.y_ << " " << current_eye.z_ << std::endl;
   //  std::cout << "current_focus " << current_focus.x_ << " " << current_focus.y_ << " " << current_focus.z_ << std::endl;
@@ -921,10 +899,10 @@ void initScene()
 
   for (size_t i = 0; i < splines.size(); i++)
   {
-    Point p0 = splines[i].points[0];
-    Point p_last = splines[i].points[splines[i].points.size() - 1];
+    glm::vec3 p0 = splines[i].points[0];
+    glm::vec3 p_last = splines[i].points[splines[i].points.size() - 1];
 
-    Point p1, p2, p3, p4;
+    glm::vec3 p1, p2, p3, p4;
     g_num_spline_vertices.push_back(0);
     for (size_t j = 0; j < splines[i].points.size() - 1; j++)
     {
@@ -947,12 +925,12 @@ void initScene()
         p4 = splines[i].points[j + 2];
       }
 
-      //      std::cout << "p1: " << p1.x_ << " " << p1.y_ << " " << p1.z_ << std::endl;
-      //      std::cout << "p2: " << p2.x_ << " " << p2.y_ << " " << p2.z_ << std::endl;
-      //      std::cout << "p3: " << p3.x_ << " " << p3.y_ << " " << p3.z_ << std::endl;
-      //      std::cout << "p4: " << p4.x_ << " " << p4.y_ << " " << p4.z_ << std::endl;
+//            std::cout << "p1: " << p1.x << " " << p1.y << " " << p1.z << std::endl;
+//            std::cout << "p2: " << p2.x << " " << p2.y << " " << p2.z << std::endl;
+//            std::cout << "p3: " << p3.x << " " << p3.y << " " << p3.z << std::endl;
+//            std::cout << "p4: " << p4.x << " " << p4.y << " " << p4.z << std::endl;
       CatmullRom catmull_rom(p1, p2, p3, p4, 0.5);
-      std::vector<Point> spline_points = catmull_rom.subDivide(0.0, 1.0, 0.10);
+      std::vector<glm::vec3> spline_points = catmull_rom.subDivide(0.0, 1.0, 0.10);
 
       // remove repeated points 
       if (j != 0)
@@ -962,9 +940,9 @@ void initScene()
 
       for (const auto &p : spline_points)
       {
-        spline_vertices.push_back(p.x_);
-        spline_vertices.push_back(p.y_);
-        spline_vertices.push_back(p.z_);
+        spline_vertices.push_back(p.x);
+        spline_vertices.push_back(p.y);
+        spline_vertices.push_back(p.z);
         //        std::cout << p.x_ << " " << p.y_ << " " << p.z_ << std::endl;
         g_num_spline_vertices.back()++;
       }

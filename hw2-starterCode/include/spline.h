@@ -2,11 +2,12 @@
 #define SPLINE_H
 
 #include <vector>
+#include <glm/glm.hpp>
 
 // spline struct 
 struct Spline
 {
-  std::vector<Point> points;
+  std::vector<glm::vec3> points;
 };
 
 #endif /* SPLINE_H */
