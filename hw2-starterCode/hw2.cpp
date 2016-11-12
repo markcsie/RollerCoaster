@@ -67,8 +67,9 @@ std::vector<GLfloat> cube_map_vertices = {
   1.0f, -1.0f, 1.0f
 };
 
-
-
+size_t counter = 0;
+double divide_threshold = 0.01;
+const size_t speed = 10;
 size_t current_spline_point_index = 0;
 
 // the spline array 
@@ -77,17 +78,20 @@ std::vector<GLfloat> spline_vertices;
 std::vector<glm::vec3> spline_n;
 std::vector<glm::vec3> spline_t;
 std::vector<glm::vec3> spline_b;
-const float alpha = 0.5;
-const float beta = 0.5;
+const float alpha = 0.1;
+const float beta = 0.4;
 const float cross_section_width = 2.0;
 // total number of splines 
 GLsizei numSplines;
 std::vector<GLsizei> g_num_spline_vertices;
 GLsizei num_spline_points;
 
+GLuint metal_texture_id;
+GLuint wood_texture_id;
 std::vector<GLfloat> left_cross_section_vertices;
 std::vector<GLfloat> right_cross_section_vertices;
-std::vector<GLuint> cross_section_indices;
+
+std::vector<GLfloat> cross_bar_vertices;
 
 int mousePos[2]; // x,y coordinate of the mouse position
 
@@ -116,13 +120,13 @@ BasicPipelineProgram basic_pipeline;
 GLuint spline_vao;
 GLuint left_cross_section_vao;
 GLuint right_cross_section_vao;
+GLuint cross_bars_vao;
 
 BasicPipelineProgram texture_pipeline;
 
 BasicPipelineProgram cube_map_pipeline;
 GLuint cube_map_vao;
 GLuint cube_map_id;
-
 
 GLuint numSplineVertices = 0;
 
@@ -362,6 +366,7 @@ void drawCubeMap()
   openGLMatrix.SetMatrixMode(OpenGLMatrix::ModelView);
   openGLMatrix.PushMatrix();
 
+  //  std::cout << "ggg splines_n[0] " << glm::to_string(spline_n[0]) << std::endl;
   openGLMatrix.Rotate(90, 1, 0, 0);
   openGLMatrix.Scale(1, -1, 1);
   GLfloat modelViewMatrix[16];
@@ -378,34 +383,98 @@ void drawCubeMap()
 
 void drawCrossSection()
 {
-  basic_pipeline.Bind();
-  
-
+  texture_pipeline.Bind();
+  glBindTexture(GL_TEXTURE_2D, metal_texture_id);
   // Set model view matrix for shaders
   openGLMatrix.SetMatrixMode(OpenGLMatrix::ModelView);
 
   GLfloat modelViewMatrix[16];
   openGLMatrix.GetMatrix(modelViewMatrix);
-  basic_pipeline.SetModelViewMatrix(modelViewMatrix);
+  texture_pipeline.SetModelViewMatrix(modelViewMatrix);
   // left track
   glBindVertexArray(left_cross_section_vao);
-  glDrawElements(GL_TRIANGLES, cross_section_indices.size(), GL_UNSIGNED_INT, (const GLvoid *) 0);
+  glDrawArrays(GL_TRIANGLES, 0, left_cross_section_vertices.size());
 
   // right track
   glBindVertexArray(right_cross_section_vao);
-  glDrawElements(GL_TRIANGLES, cross_section_indices.size(), GL_UNSIGNED_INT, (const GLvoid *) 0);
+  glDrawArrays(GL_TRIANGLES, 0, right_cross_section_vertices.size());
 
   glBindVertexArray(0);
+  glBindTexture(GL_TEXTURE_2D, 0);
+}
+
+void drawCrossBars()
+{
+  texture_pipeline.Bind();
+  glBindTexture(GL_TEXTURE_2D, wood_texture_id);
+  // Set model view matrix for shaders
+  openGLMatrix.SetMatrixMode(OpenGLMatrix::ModelView);
+
+  GLfloat modelViewMatrix[16];
+  openGLMatrix.GetMatrix(modelViewMatrix);
+  texture_pipeline.SetModelViewMatrix(modelViewMatrix);
+
+  // bars
+  glBindVertexArray(cross_bars_vao);
+  glDrawArrays(GL_TRIANGLES, 0, cross_bar_vertices.size());
+
+  glBindVertexArray(0);
+  glBindTexture(GL_TEXTURE_2D, 0);
+}
+
+void pushFaceVertices(std::vector<GLfloat> &vertices, const glm::vec3 &v0, const glm::vec3 &v1, const glm::vec3 &v2, const glm::vec3 &v3)
+{
+  vertices.push_back(v0.x);
+  vertices.push_back(v0.y);
+  vertices.push_back(v0.z);
+
+  vertices.push_back(v1.x);
+  vertices.push_back(v1.y);
+  vertices.push_back(v1.z);
+
+  vertices.push_back(v2.x);
+  vertices.push_back(v2.y);
+  vertices.push_back(v2.z);
+
+  vertices.push_back(v2.x);
+  vertices.push_back(v2.y);
+  vertices.push_back(v2.z);
+
+  vertices.push_back(v3.x);
+  vertices.push_back(v3.y);
+  vertices.push_back(v3.z);
+
+  vertices.push_back(v0.x);
+  vertices.push_back(v0.y);
+  vertices.push_back(v0.z);
+}
+
+void pushFaceUV(std::vector<GLfloat> &uv)
+{
+  uv.push_back(0.0);
+  uv.push_back(0.0);
+
+  uv.push_back(1.0);
+  uv.push_back(0.0);
+
+  uv.push_back(1.0);
+  uv.push_back(1.0);
+
+  uv.push_back(1.0);
+  uv.push_back(1.0);
+
+  uv.push_back(0.0);
+  uv.push_back(1.0);
+
+  uv.push_back(0.0);
+  uv.push_back(0.0);
 }
 
 void setCrossSectionVertices()
 {
   for (size_t i = 0; i < num_spline_points; i++)
   {
-    glm::vec3 p;
-    p.x = spline_vertices[i * 3];
-    p.y = spline_vertices[i * 3 + 1];
-    p.z = spline_vertices[i * 3 + 2];
+    glm::vec3 p(spline_vertices[i * 3], spline_vertices[i * 3 + 1], spline_vertices[i * 3 + 2]);
 
     glm::vec3 next_p;
     if (i == num_spline_points - 1)
@@ -434,9 +503,9 @@ void setCrossSectionVertices()
     glm::vec3 b;
     if (i == 0)
     {
-      n.x = 0;
-      n.y = 0;
-      n.z = 1;
+      //      glm::vec3 v(0, 1, 0);
+      //      n = glm::normalize(glm::cross(t, v));
+      n = glm::vec3(0, 0, 1);
     }
     else
     {
@@ -447,167 +516,122 @@ void setCrossSectionVertices()
     spline_n.push_back(n);
     spline_t.push_back(t);
     spline_b.push_back(b);
-
-    glm::vec3 left_v0 = p - alpha * n - beta * b;
-
-    left_cross_section_vertices.push_back(left_v0.x);
-    left_cross_section_vertices.push_back(left_v0.y);
-    left_cross_section_vertices.push_back(left_v0.z);
-
-    glm::vec3 left_v1 = p + alpha * n - beta * b;
-
-    left_cross_section_vertices.push_back(left_v1.x);
-    left_cross_section_vertices.push_back(left_v1.y);
-    left_cross_section_vertices.push_back(left_v1.z);
-
-    glm::vec3 left_v2 = p + alpha * n - cross_section_width * beta * b;
-
-    left_cross_section_vertices.push_back(left_v2.x);
-    left_cross_section_vertices.push_back(left_v2.y);
-    left_cross_section_vertices.push_back(left_v2.z);
-
-    glm::vec3 left_v3 = p - alpha * n - cross_section_width * beta * b;
-
-    left_cross_section_vertices.push_back(left_v3.x);
-    left_cross_section_vertices.push_back(left_v3.y);
-    left_cross_section_vertices.push_back(left_v3.z);
-
-    // right
-    glm::vec3 right_v0 = p - alpha * n + cross_section_width * beta * b;
-
-    right_cross_section_vertices.push_back(right_v0.x);
-    right_cross_section_vertices.push_back(right_v0.y);
-    right_cross_section_vertices.push_back(right_v0.z);
-
-    glm::vec3 right_v1 = p + alpha * n + cross_section_width * beta * b;
-
-    right_cross_section_vertices.push_back(right_v1.x);
-    right_cross_section_vertices.push_back(right_v1.y);
-    right_cross_section_vertices.push_back(right_v1.z);
-
-    glm::vec3 right_v2 = p + alpha * n + beta * b;
-
-    right_cross_section_vertices.push_back(right_v2.x);
-    right_cross_section_vertices.push_back(right_v2.y);
-    right_cross_section_vertices.push_back(right_v2.z);
-
-    glm::vec3 right_v3 = p - alpha * n + beta * b;
-
-    right_cross_section_vertices.push_back(right_v3.x);
-    right_cross_section_vertices.push_back(right_v3.y);
-    right_cross_section_vertices.push_back(right_v3.z);
-
-    //    std::cout << "p " << p.x_ << " " << p.y_ << " " << p.z_ << std::endl;
-    //    std::cout << "v0 " << v0.x_ << " " << v0.y_ << " " << v0.z_ << std::endl;
-    //    std::cout << "v1 " << v1.x_ << " " << v1.y_ << " " << v1.z_ << std::endl;
-    //    std::cout << "v2 " << v2.x_ << " " << v2.y_ << " " << v2.z_ << std::endl;
-    //    std::cout << "v3 " << v3.x_ << " " << v3.y_ << " " << v3.z_ << std::endl;
-
-    // starting face
-    size_t index = i * 4;
-    if (i == 0)
-    {
-      cross_section_indices.push_back(index);
-      cross_section_indices.push_back(index + 1);
-      cross_section_indices.push_back(index + 2);
-
-      cross_section_indices.push_back(index + 2);
-      cross_section_indices.push_back(index + 3);
-      cross_section_indices.push_back(index);
-    }
-    // 4 faces
-    if (i < num_spline_points - 1)
-    {
-      cross_section_indices.push_back(index);
-      cross_section_indices.push_back(index + 4);
-      cross_section_indices.push_back(index + 5);
-
-      cross_section_indices.push_back(index + 5);
-      cross_section_indices.push_back(index + 1);
-      cross_section_indices.push_back(index);
-
-      cross_section_indices.push_back(index + 1);
-      cross_section_indices.push_back(index + 5);
-      cross_section_indices.push_back(index + 6);
-
-      cross_section_indices.push_back(index + 6);
-      cross_section_indices.push_back(index + 2);
-      cross_section_indices.push_back(index + 1);
-
-      cross_section_indices.push_back(index + 2);
-      cross_section_indices.push_back(index + 6);
-      cross_section_indices.push_back(index + 7);
-
-      cross_section_indices.push_back(index + 7);
-      cross_section_indices.push_back(index + 3);
-      cross_section_indices.push_back(index + 2);
-
-      cross_section_indices.push_back(index + 3);
-      cross_section_indices.push_back(index + 7);
-      cross_section_indices.push_back(index);
-
-      cross_section_indices.push_back(index);
-      cross_section_indices.push_back(index + 4);
-      cross_section_indices.push_back(index + 3);
-    }
-
-    if (i == num_spline_points - 1)
-    {
-      cross_section_indices.push_back(index);
-      cross_section_indices.push_back(index + 3);
-      cross_section_indices.push_back(index + 2);
-
-      cross_section_indices.push_back(index + 2);
-      cross_section_indices.push_back(index + 1);
-      cross_section_indices.push_back(index);
-    }
   }
-  
-  std::vector<GLfloat> colors;
-  for (size_t i = 0; i < left_cross_section_vertices.size() / 3; i++)
+
+  std::vector<GLfloat> uvData;
+  std::vector<GLfloat> bar_uvData;
+  const size_t cross_section_k = num_spline_points / 100;
+  for (size_t i = 0; i < num_spline_points - 1; i++)
   {
-    colors.push_back(1.0);
-    colors.push_back(1.0);
-    colors.push_back(1.0);
-    colors.push_back(0.0);
+    if (i % cross_section_k == 0)
+    {
+      glm::vec3 p(spline_vertices[i * 3], spline_vertices[i * 3 + 1], spline_vertices[i * 3 + 2]);
+      glm::vec3 next_p(spline_vertices[(i + cross_section_k) * 3], spline_vertices[(i + cross_section_k) * 3 + 1], spline_vertices[(i + cross_section_k) * 3 + 2]);
+
+      glm::vec3 left_v0 = p - alpha * spline_n[i] - beta * spline_b[i];
+      glm::vec3 left_v1 = p + alpha * spline_n[i] - beta * spline_b[i];
+      glm::vec3 left_v2 = p + alpha * spline_n[i] - cross_section_width * beta * spline_b[i];
+      glm::vec3 left_v3 = p - alpha * spline_n[i] - cross_section_width * beta * spline_b[i];
+
+      glm::vec3 left_v4 = next_p - alpha * spline_n[i + cross_section_k] - beta * spline_b[i + cross_section_k];
+      glm::vec3 left_v5 = next_p + alpha * spline_n[i + cross_section_k] - beta * spline_b[i + cross_section_k];
+      glm::vec3 left_v6 = next_p + alpha * spline_n[i + cross_section_k] - cross_section_width * beta * spline_b[i + cross_section_k];
+      glm::vec3 left_v7 = next_p - alpha * spline_n[i + cross_section_k] - cross_section_width * beta * spline_b[i + cross_section_k];
+
+      pushFaceVertices(left_cross_section_vertices, left_v0, left_v1, left_v2, left_v3);
+      pushFaceVertices(left_cross_section_vertices, left_v0, left_v4, left_v5, left_v1);
+      pushFaceVertices(left_cross_section_vertices, left_v1, left_v5, left_v6, left_v2);
+      pushFaceVertices(left_cross_section_vertices, left_v2, left_v6, left_v7, left_v3);
+      pushFaceVertices(left_cross_section_vertices, left_v7, left_v4, left_v0, left_v3);
+
+      // right
+      glm::vec3 right_v0 = p - alpha * spline_n[i] + cross_section_width * beta * spline_b[i];
+      glm::vec3 right_v1 = p + alpha * spline_n[i] + cross_section_width * beta * spline_b[i];
+      glm::vec3 right_v2 = p + alpha * spline_n[i] + beta * spline_b[i];
+      glm::vec3 right_v3 = p - alpha * spline_n[i] + beta * spline_b[i];
+
+      glm::vec3 right_v4 = next_p - alpha * spline_n[i + cross_section_k] + cross_section_width * beta * spline_b[i + cross_section_k];
+      glm::vec3 right_v5 = next_p + alpha * spline_n[i + cross_section_k] + cross_section_width * beta * spline_b[i + cross_section_k];
+      glm::vec3 right_v6 = next_p + alpha * spline_n[i + cross_section_k] + beta * spline_b[i + cross_section_k];
+      glm::vec3 right_v7 = next_p - alpha * spline_n[i + cross_section_k] + beta * spline_b[i + cross_section_k];
+
+      pushFaceVertices(right_cross_section_vertices, right_v0, right_v1, right_v2, right_v3);
+      pushFaceVertices(right_cross_section_vertices, right_v0, right_v4, right_v5, right_v1);
+      pushFaceVertices(right_cross_section_vertices, right_v1, right_v5, right_v6, right_v2);
+      pushFaceVertices(right_cross_section_vertices, right_v2, right_v6, right_v7, right_v3);
+      pushFaceVertices(right_cross_section_vertices, right_v7, right_v4, right_v0, right_v3);
+
+      glm::vec3 bar_v1 = right_v0 + 0.4 * spline_b[i];
+      glm::vec3 bar_v0 = bar_v1 - 0.1 * spline_n[i];
+      glm::vec3 bar_v2 = left_v3 - 0.4 * spline_b[i];
+      glm::vec3 bar_v3 = bar_v2 - 0.1 * spline_n[i];
+
+      glm::vec3 bar_v5 = bar_v1 + 0.3 * (right_v4 - right_v0);
+      glm::vec3 bar_v4 = bar_v5 - 0.1 * spline_n[i+1];
+      glm::vec3 bar_v6 = bar_v2 + 0.3 * (left_v7 - left_v3);
+      glm::vec3 bar_v7 = bar_v6 - 0.1 * spline_n[i+1];
+
+      pushFaceVertices(cross_bar_vertices, bar_v0, bar_v1, bar_v2, bar_v3);
+      pushFaceVertices(cross_bar_vertices, bar_v0, bar_v4, bar_v5, bar_v1);
+      pushFaceVertices(cross_bar_vertices, bar_v1, bar_v5, bar_v6, bar_v2);
+      pushFaceVertices(cross_bar_vertices, bar_v2, bar_v6, bar_v7, bar_v3);
+      pushFaceVertices(cross_bar_vertices, bar_v7, bar_v4, bar_v0, bar_v3);
+      pushFaceVertices(cross_bar_vertices, bar_v4, bar_v7, bar_v6, bar_v5);
+
+      for (size_t i = 0; i < 6; i++)
+      {
+        pushFaceUV(bar_uvData);
+      }
+    }
+
+    for (size_t i = 0; i < 5; i++)
+    {
+      pushFaceUV(uvData);
+    }
   }
 
-  assert(spline_n.size() == num_spline_points && spline_n.size() == spline_t.size() && spline_t.size() == spline_b.size());
-  assert(left_cross_section_vertices.size() == num_spline_points * 4 * 3);
-  assert(right_cross_section_vertices.size() == num_spline_points * 4 * 3);
-  std::cout << "ggg left_cross_section_vertices.size() " << left_cross_section_vertices.size() << std::endl;
-  std::cout << "ggg right_cross_section_vertices.size() " << right_cross_section_vertices.size() << std::endl;
-  std::cout << "ggg " << (2 + (num_spline_points - 1) * 4) * 2 * 3 << std::endl;
-  assert(cross_section_indices.size() == (2 + (num_spline_points - 1) * 4) * 2 * 3);
+//  assert(spline_n.size() == num_spline_points && spline_n.size() == spline_t.size() && spline_t.size() == spline_b.size());
+//  assert(left_cross_section_vertices.size() == (num_spline_points - 1) * 5 * 2 * 3 * 3);
+//  assert(right_cross_section_vertices.size() == (num_spline_points - 1) * 5 * 2 * 3 * 3);
 
   // Generate and bind Vertex Array Object
   glGenVertexArrays(1, &left_cross_section_vao);
   glBindVertexArray(left_cross_section_vao);
+
+  glGenTextures(1, &metal_texture_id);
+  if (initTexture("./MetalDsk.jpg", metal_texture_id) != 0)
+  {
+    std::cerr << "loading metal_texture_id error" << std::endl;
+    exit(EXIT_FAILURE);
+  }
+
+  glGenTextures(1, &wood_texture_id);
+  if (initTexture("./wood.jpg", wood_texture_id) != 0)
+  {
+    std::cerr << "loading wood_texture_id error" << std::endl;
+    exit(EXIT_FAILURE);
+  }
+
+  setTextureUnit(GL_TEXTURE0);
 
   // Generate, bind and send vertex Vertex Buffer Object to shaders
   GLuint left_vertexBufferName;
   glGenBuffers(1, &left_vertexBufferName);
   glBindBuffer(GL_ARRAY_BUFFER, left_vertexBufferName);
   glBufferData(GL_ARRAY_BUFFER, left_cross_section_vertices.size() * sizeof (GLfloat), &left_cross_section_vertices[0], GL_STATIC_DRAW);
-  GLuint left_posLocation = glGetAttribLocation(basic_pipeline.GetProgramHandle(), "position");
+  GLuint left_posLocation = glGetAttribLocation(texture_pipeline.GetProgramHandle(), "position");
   glVertexAttribPointer(left_posLocation, 3, GL_FLOAT, GL_FALSE, 0, 0);
-  glEnableVertexArrayAttrib(left_cross_section_vao, left_posLocation);
+  glEnableVertexAttribArray(left_posLocation);
 
-  // Generate, bind and send color Vertex Buffer Object to shaders
-  GLuint left_colorBufferName;
-  glGenBuffers(1, &left_colorBufferName);
-  glBindBuffer(GL_ARRAY_BUFFER, left_colorBufferName);
-  glBufferData(GL_ARRAY_BUFFER, colors.size() * sizeof (GLfloat), &colors[0], GL_STATIC_DRAW);
-  GLuint left_colLocation = glGetAttribLocation(basic_pipeline.GetProgramHandle(), "color");
-  glVertexAttribPointer(left_colLocation, 4, GL_FLOAT, GL_FALSE, 0, 0);
-  glEnableVertexArrayAttrib(left_cross_section_vao, left_colLocation);
+  // Generate, bind and send uv Vertex Buffer Object to shaders for texture mapping
+  GLuint left_uvbuffer;
+  glGenBuffers(1, &left_uvbuffer);
+  glBindBuffer(GL_ARRAY_BUFFER, left_uvbuffer);
+  glBufferData(GL_ARRAY_BUFFER, uvData.size() * sizeof (GLfloat), &uvData[0], GL_STATIC_DRAW);
+  GLuint left_uvLocation = glGetAttribLocation(texture_pipeline.GetProgramHandle(), "texCoord");
+  glVertexAttribPointer(left_uvLocation, 2, GL_FLOAT, GL_FALSE, 0, 0);
+  glEnableVertexAttribArray(left_uvLocation);
 
-  // Generate and bind elements Vertex Buffer Object
-  GLuint left_elementbuffer;
-  glGenBuffers(1, &left_elementbuffer);
-  glBindBuffer(GL_ELEMENT_ARRAY_BUFFER, left_elementbuffer);
-  glBufferData(GL_ELEMENT_ARRAY_BUFFER, cross_section_indices.size() * sizeof (GLuint), &cross_section_indices[0], GL_STATIC_DRAW);
-  
   // right
   // Generate and bind Vertex Array Object
   glGenVertexArrays(1, &right_cross_section_vao);
@@ -618,24 +642,39 @@ void setCrossSectionVertices()
   glGenBuffers(1, &right_vertexBufferName);
   glBindBuffer(GL_ARRAY_BUFFER, right_vertexBufferName);
   glBufferData(GL_ARRAY_BUFFER, right_cross_section_vertices.size() * sizeof (GLfloat), &right_cross_section_vertices[0], GL_STATIC_DRAW);
-  GLuint right_posLocation = glGetAttribLocation(basic_pipeline.GetProgramHandle(), "position");
+  GLuint right_posLocation = glGetAttribLocation(texture_pipeline.GetProgramHandle(), "position");
   glVertexAttribPointer(right_posLocation, 3, GL_FLOAT, GL_FALSE, 0, 0);
-  glEnableVertexArrayAttrib(right_cross_section_vao, right_posLocation);
+  glEnableVertexAttribArray(right_posLocation);
 
-  // Generate, bind and send color Vertex Buffer Object to shaders
-  GLuint right_colorBufferName;
-  glGenBuffers(1, &right_colorBufferName);
-  glBindBuffer(GL_ARRAY_BUFFER, right_colorBufferName);
-  glBufferData(GL_ARRAY_BUFFER, colors.size() * sizeof (GLfloat), &colors[0], GL_STATIC_DRAW);
-  GLuint right_colLocation = glGetAttribLocation(basic_pipeline.GetProgramHandle(), "color");
-  glVertexAttribPointer(right_colLocation, 4, GL_FLOAT, GL_FALSE, 0, 0);
-  glEnableVertexArrayAttrib(right_cross_section_vao, right_colLocation);
+  // Generate, bind and send uv Vertex Buffer Object to shaders for texture mapping
+  GLuint right_uvbuffer;
+  glGenBuffers(1, &right_uvbuffer);
+  glBindBuffer(GL_ARRAY_BUFFER, right_uvbuffer);
+  glBufferData(GL_ARRAY_BUFFER, uvData.size() * sizeof (GLfloat), &uvData[0], GL_STATIC_DRAW);
+  GLuint right_uvLocation = glGetAttribLocation(texture_pipeline.GetProgramHandle(), "texCoord");
+  glVertexAttribPointer(right_uvLocation, 2, GL_FLOAT, GL_FALSE, 0, 0);
+  glEnableVertexAttribArray(right_uvLocation);
 
-  // Generate and bind elements Vertex Buffer Object
-  GLuint right_elementbuffer;
-  glGenBuffers(1, &right_elementbuffer);
-  glBindBuffer(GL_ELEMENT_ARRAY_BUFFER, right_elementbuffer);
-  glBufferData(GL_ELEMENT_ARRAY_BUFFER, cross_section_indices.size() * sizeof (GLuint), &cross_section_indices[0], GL_STATIC_DRAW);
+  glGenVertexArrays(1, &cross_bars_vao);
+  glBindVertexArray(cross_bars_vao);
+
+  // Generate, bind and send vertex Vertex Buffer Object to shaders
+  GLuint cross_bar_vertexBufferName;
+  glGenBuffers(1, &cross_bar_vertexBufferName);
+  glBindBuffer(GL_ARRAY_BUFFER, cross_bar_vertexBufferName);
+  glBufferData(GL_ARRAY_BUFFER, cross_bar_vertices.size() * sizeof (GLfloat), &cross_bar_vertices[0], GL_STATIC_DRAW);
+  GLuint cross_bar_posLocation = glGetAttribLocation(texture_pipeline.GetProgramHandle(), "position");
+  glVertexAttribPointer(cross_bar_posLocation, 3, GL_FLOAT, GL_FALSE, 0, 0);
+  glEnableVertexAttribArray(cross_bar_posLocation);
+
+  // Generate, bind and send uv Vertex Buffer Object to shaders for texture mapping
+  GLuint cross_bar_uvbuffer;
+  glGenBuffers(1, &cross_bar_uvbuffer);
+  glBindBuffer(GL_ARRAY_BUFFER, cross_bar_uvbuffer);
+  glBufferData(GL_ARRAY_BUFFER, bar_uvData.size() * sizeof (GLfloat), &bar_uvData[0], GL_STATIC_DRAW);
+  GLuint cross_bar_uvLocation = glGetAttribLocation(texture_pipeline.GetProgramHandle(), "texCoord");
+  glVertexAttribPointer(cross_bar_uvLocation, 2, GL_FLOAT, GL_FALSE, 0, 0);
+  glEnableVertexAttribArray(cross_bar_uvLocation);
 }
 
 void setCamera()
@@ -647,20 +686,10 @@ void setCamera()
   current_eye.z = spline_vertices[current_spline_point_index * 3 + 2];
   current_eye = current_eye + spline_n[current_spline_point_index];
   glm::vec3 current_focus = current_eye + spline_t[current_spline_point_index];
+  openGLMatrix.LookAt(current_eye.x, current_eye.y, current_eye.z, current_focus.x, current_focus.y, current_focus.z, current_up.x, current_up.y, current_up.z);
+//    openGLMatrix.LookAt(0, 0, 10, 0, 0, 0, 0, 1, 0);
 
-  //  
-  //  openGLMatrix.Rotate(90, 1, 0, 0);
-      openGLMatrix.LookAt(current_eye.x, current_eye.y, current_eye.z, current_focus.x, current_focus.y, current_focus.z, current_up.x, current_up.y, current_up.z);
-
-  //  std::cout << "current_eye " << current_eye.x_ << " " << current_eye.y_ << " " << current_eye.z_ << std::endl;
-  //  std::cout << "current_focus " << current_focus.x_ << " " << current_focus.y_ << " " << current_focus.z_ << std::endl;
-  //  std::cout << "current_up " << current_up.x_ << " " << current_up.y_ << " " << current_up.z_ << std::endl;
-  //  openGLMatrix.LookAt(current_eye.x_, current_eye.y_, current_eye.z_, current_focus.x_, current_focus.y_, current_focus.z_, 0, 1, 0);
-  //  openGLMatrix.Rotate(90, 1, 0, 0);
-//  openGLMatrix.LookAt(0, 0, 50, 0, 0, 0, 0, 1, 0);
-
-  current_spline_point_index++;
-  //  current_u += 0.1;
+  current_spline_point_index += speed;
 }
 
 void displayFunc()
@@ -673,13 +702,14 @@ void displayFunc()
   openGLMatrix.GetMatrix(projectionMatrix);
   basic_pipeline.Bind();
   basic_pipeline.SetProjectionMatrix(projectionMatrix);
+  texture_pipeline.Bind();
+  texture_pipeline.SetProjectionMatrix(projectionMatrix);
   cube_map_pipeline.Bind();
   cube_map_pipeline.SetProjectionMatrix(projectionMatrix);
 
   openGLMatrix.SetMatrixMode(OpenGLMatrix::ModelView);
   openGLMatrix.LoadIdentity();
   setCamera();
-
 
   // interactive viewpoint
   openGLMatrix.SetMatrixMode(OpenGLMatrix::ModelView);
@@ -689,24 +719,20 @@ void displayFunc()
   openGLMatrix.Rotate(landRotate[2], 0, 0, 1);
   openGLMatrix.Scale(landScale[0], landScale[1], landScale[2]);
 
+  // Draw cube map
   drawCubeMap();
 
-  // Draw cube map
-  //  openGLMatrix.PushMatrix();
-  //  drawCrossSection();
-  //  openGLMatrix.Rotate(-90, 1, 0, 0);
+
   drawCrossSection();
+  drawCrossBars();
 
-  //  openGLMatrix.PopMatrix();
-
-
-
-
-  //  texture_pipeline.Bind();
-  //  glBindVertexArray(texture_vao);
-  //  texture_pipeline.SetProjectionMatrix(projectionMatrix);
-  //  texture_pipeline.SetModelViewMatrix(modelViewMatrix);
-  //  glDrawElements(GL_TRIANGLE_STRIP, 2 * 3, GL_UNSIGNED_INT, (const GLvoid *) 0);
+  basic_pipeline.Bind();
+  glBindVertexArray(spline_vao);
+  GLfloat modelViewMatrix[16];
+  openGLMatrix.SetMatrixMode(OpenGLMatrix::ModelView);
+  openGLMatrix.GetMatrix(modelViewMatrix);
+  basic_pipeline.SetModelViewMatrix(modelViewMatrix);
+  glDrawArrays(GL_POINTS, 0, spline_vertices.size());
 
   glutSwapBuffers(); // Swap buffers for double buffering
 }
@@ -748,8 +774,8 @@ void mouseMotionDragFunc(int x, int y)
       if (leftMouseButton)
       {
         // control x,y translation via the left mouse button
-        landTranslate[0] += mousePosDelta[0] * 0.003f;
-        landTranslate[1] -= mousePosDelta[1] * 0.003f;
+        landTranslate[0] += mousePosDelta[0] * 0.03f;
+        landTranslate[1] -= mousePosDelta[1] * 0.03f;
       }
       if (middleMouseButton)
       {
@@ -925,12 +951,12 @@ void initScene()
         p4 = splines[i].points[j + 2];
       }
 
-//            std::cout << "p1: " << p1.x << " " << p1.y << " " << p1.z << std::endl;
-//            std::cout << "p2: " << p2.x << " " << p2.y << " " << p2.z << std::endl;
-//            std::cout << "p3: " << p3.x << " " << p3.y << " " << p3.z << std::endl;
-//            std::cout << "p4: " << p4.x << " " << p4.y << " " << p4.z << std::endl;
+      //            std::cout << "p1: " << p1.x << " " << p1.y << " " << p1.z << std::endl;
+      //            std::cout << "p2: " << p2.x << " " << p2.y << " " << p2.z << std::endl;
+      //            std::cout << "p3: " << p3.x << " " << p3.y << " " << p3.z << std::endl;
+      //            std::cout << "p4: " << p4.x << " " << p4.y << " " << p4.z << std::endl;
       CatmullRom catmull_rom(p1, p2, p3, p4, 0.5);
-      std::vector<glm::vec3> spline_points = catmull_rom.subDivide(0.0, 1.0, 0.10);
+      std::vector<glm::vec3> spline_points = catmull_rom.subDivide(0.0, 1.0, divide_threshold);
 
       // remove repeated points 
       if (j != 0)
@@ -963,8 +989,6 @@ void initScene()
   // Create shaders
   basic_pipeline.Init("../openGLHelper-starterCode", "basic.vertexShader.glsl", "basic.fragmentShader.glsl");
 
-  setCrossSectionVertices();
-
   // Generate and bind Vertex Array Object
   glGenVertexArrays(1, &spline_vao);
   glBindVertexArray(spline_vao);
@@ -989,19 +1013,12 @@ void initScene()
 
   // ====================objects with textures=====================
   texture_pipeline.Init("../openGLHelper-starterCode", "texture.vertexShader.glsl", "texture.fragmentShader.glsl");
-  //  GLuint ground_texture_id;
-  //  glGenTextures(1, &ground_texture_id);
-  //  if (initTexture("./grass.jpg", ground_texture_id) != 0)
-  //  {
-  //    std::cerr << "loading ground_texture error" << std::endl;
-  //    exit(EXIT_FAILURE);
-  //  }
+  setCrossSectionVertices();
 
   // Enable depth testing so that the hidden scene will not be drawn.
   glEnable(GL_DEPTH_TEST);
 
   // Background color
-  //  glClearColor(131.0 / 255.0, 175 / 255.0, 155.0 / 255.0, 0.0);
   glClearColor(0.0, 0.0, 0.0, 0.0);
 }
 
