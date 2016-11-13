@@ -6,10 +6,10 @@
   Student username: <kaichiem>
  */
 
+#include <glm/ext.hpp>
+
 #include <iostream>
 #include <vector>
-#include <array>
-#include <cstring>
 
 #include "openGLHeader.h"
 #include "glutHeader.h"
@@ -19,8 +19,6 @@
 
 #include "include/catmull_rom.h"
 #include "include/spline.h"
-
-#include <glm/ext.hpp>
 
 std::vector<GLfloat> cube_map_vertices = {
   // Positions          
@@ -67,13 +65,14 @@ std::vector<GLfloat> cube_map_vertices = {
   1.0f, -1.0f, 1.0f
 };
 
+// speed
 double divide_threshold = 0.01;
 clock_t last_time;
 const float g = 9.8 * 1000;
 const float max_z = 7.0;
 size_t current_spline_point_index = 0;
 
-// the spline array 
+// spline
 Spline spline;
 std::vector<GLfloat> spline_vertices;
 std::vector<glm::vec3> spline_n;
@@ -82,53 +81,29 @@ std::vector<glm::vec3> spline_b;
 const float alpha = 0.1;
 const float beta = 0.4;
 const float cross_section_width = 2.0;
-// total number of splines 
 size_t numSplines;
 size_t num_spline_points;
 
-GLuint metal_texture_id;
-GLuint wood_texture_id;
-std::vector<GLfloat> left_cross_section_vertices;
-std::vector<GLfloat> right_cross_section_vertices;
-
-std::vector<GLfloat> cross_bar_vertices;
-
-int mousePos[2]; // x,y coordinate of the mouse position
-
-int leftMouseButton = 0; // 1 if pressed, 0 if not 
-int middleMouseButton = 0; // 1 if pressed, 0 if not
-int rightMouseButton = 0; // 1 if pressed, 0 if not
-
-typedef enum
-{
-  ROTATE, TRANSLATE, SCALE
-} CONTROL_STATE;
-CONTROL_STATE controlState = ROTATE;
-
-// state of the world
-std::array<GLfloat, 3> landRotate = {0.0f, 0.0f, 0.0f};
-std::array<GLfloat, 3> landTranslate = {0.0f, 0.0f, 0.0f};
-std::array<GLfloat, 3> landScale = {1.0f, 1.0f, 1.0f};
-
 const GLuint windowWidth = 1280;
 const GLuint windowHeight = 720;
-char windowTitle[512] = "CSCI 420 homework II";
+const char windowTitle[512] = "CSCI 420 homework II";
+size_t screenShotCount = 0;
 
 OpenGLMatrix openGLMatrix;
 
-BasicPipelineProgram basic_pipeline;
-GLuint spline_vao;
-GLuint left_cross_section_vao;
-GLuint right_cross_section_vao;
-GLuint cross_bars_vao;
-
 BasicPipelineProgram texture_pipeline;
+GLuint metal_texture_id;
+GLuint wood_texture_id;
+GLuint left_cross_section_vao;
+std::vector<GLfloat> left_cross_section_vertices;
+GLuint right_cross_section_vao;
+std::vector<GLfloat> right_cross_section_vertices;
+GLuint cross_bars_vao;
+std::vector<GLfloat> cross_bar_vertices;
 
 BasicPipelineProgram cube_map_pipeline;
 GLuint cube_map_vao;
 GLuint cube_map_id;
-
-GLuint numSplineVertices = 0;
 
 int loadSplines(char * argv)
 {
@@ -352,6 +327,7 @@ void setTextureUnit(GLint unit)
 }
 
 // write a screenshot to the specified filename
+
 void saveScreenshot(const char * filename)
 {
   unsigned char * screenshotData = new unsigned char[windowWidth * windowHeight * 3];
@@ -397,12 +373,12 @@ void drawCubeMap()
 void drawCrossSection()
 {
   texture_pipeline.Bind();
-  
+
   openGLMatrix.SetMatrixMode(OpenGLMatrix::ModelView);
   GLfloat modelViewMatrix[16];
   openGLMatrix.GetMatrix(modelViewMatrix);
   texture_pipeline.SetModelViewMatrix(modelViewMatrix);
-  
+
   glBindTexture(GL_TEXTURE_2D, metal_texture_id);
   // left track
   glBindVertexArray(left_cross_section_vao);
@@ -419,7 +395,7 @@ void drawCrossSection()
 void drawCrossBars()
 {
   texture_pipeline.Bind();
-  
+
   openGLMatrix.SetMatrixMode(OpenGLMatrix::ModelView);
   GLfloat modelViewMatrix[16];
   openGLMatrix.GetMatrix(modelViewMatrix);
@@ -482,6 +458,89 @@ void pushFaceUV(std::vector<GLfloat> &uv)
   uv.push_back(0.0);
 }
 
+void setCubeMap()
+{
+  // ================ cube map
+  // Generate and bind Vertex Array Object
+  glGenVertexArrays(1, &cube_map_vao);
+  glBindVertexArray(cube_map_vao);
+
+  for (auto &f : cube_map_vertices)
+  {
+    f *= 1000;
+  }
+
+  // Generate, bind and send vertex Vertex Buffer Object to shaders
+  GLuint cube_map_vertexBufferName;
+  glGenBuffers(1, &cube_map_vertexBufferName);
+  glBindBuffer(GL_ARRAY_BUFFER, cube_map_vertexBufferName);
+  glBufferData(GL_ARRAY_BUFFER, cube_map_vertices.size() * sizeof (GLfloat), &cube_map_vertices[0], GL_STATIC_DRAW);
+  GLuint cube_map_posLocation = glGetAttribLocation(cube_map_pipeline.GetProgramHandle(), "position");
+  glVertexAttribPointer(cube_map_posLocation, 3, GL_FLOAT, GL_FALSE, 0, 0);
+  glEnableVertexArrayAttrib(cube_map_vao, cube_map_posLocation);
+
+  std::vector<std::string> file_names = {"./arrakisday_rt.jpg", "./arrakisday_lf.jpg", "./arrakisday_dn.jpg", "./arrakisday_up.jpg", "./arrakisday_bk.jpg", "./arrakisday_ft.jpg"};
+
+  if (initCubeMap(file_names) != 0)
+  {
+    std::cerr << "ggg " << std::endl;
+  }
+}
+
+void setSplinePoints()
+{
+  // generate splines vertices
+  std::cout << "spline.points.size() " << spline.points.size() << std::endl;
+  glm::vec3 p0 = spline.points[0];
+  glm::vec3 p_last = spline.points[spline.points.size() - 1];
+
+  glm::vec3 p1, p2, p3, p4;
+  for (size_t j = 0; j < spline.points.size() - 1; j++)
+  {
+    if (j == 0)
+    {
+      p1 = p0;
+    }
+    else
+    {
+      p1 = spline.points[j - 1];
+    }
+    p2 = spline.points[j];
+    p3 = spline.points[j + 1];
+    if (j == spline.points.size() - 2)
+    {
+      p4 = p_last;
+    }
+    else
+    {
+      p4 = spline.points[j + 2];
+    }
+
+    //            std::cout << "p1: " << p1.x << " " << p1.y << " " << p1.z << std::endl;
+    //            std::cout << "p2: " << p2.x << " " << p2.y << " " << p2.z << std::endl;
+    //            std::cout << "p3: " << p3.x << " " << p3.y << " " << p3.z << std::endl;
+    //            std::cout << "p4: " << p4.x << " " << p4.y << " " << p4.z << std::endl;
+    CatmullRom catmull_rom(p1, p2, p3, p4, 0.5);
+    std::vector<glm::vec3> spline_points = catmull_rom.subDivide(0.0, 1.0, divide_threshold);
+
+    // remove repeated points 
+    if (j != 0)
+    {
+      spline_points.erase(spline_points.begin());
+    }
+
+    for (const glm::vec3 &p : spline_points)
+    {
+      spline_vertices.push_back(p.x);
+      spline_vertices.push_back(p.y);
+      spline_vertices.push_back(p.z);
+      //        std::cout << p.x_ << " " << p.y_ << " " << p.z_ << std::endl;
+    }
+  }
+  num_spline_points = spline_vertices.size() / 3;
+  std::cout << "num_spline_points: " << num_spline_points << std::endl;
+}
+
 void setCrossSectionVertices()
 {
   for (size_t i = 0; i < num_spline_points; i++)
@@ -515,8 +574,6 @@ void setCrossSectionVertices()
     glm::vec3 b;
     if (i == 0)
     {
-      //      glm::vec3 v(0, 1, 0);
-      //      n = glm::normalize(glm::cross(t, v));
       n = glm::vec3(0, 0, 1);
     }
     else
@@ -602,14 +659,6 @@ void setCrossSectionVertices()
     }
   }
 
-  //  assert(spline_n.size() == num_spline_points && spline_n.size() == spline_t.size() && spline_t.size() == spline_b.size());
-  //  assert(left_cross_section_vertices.size() == (num_spline_points - 1) * 5 * 2 * 3 * 3);
-  //  assert(right_cross_section_vertices.size() == (num_spline_points - 1) * 5 * 2 * 3 * 3);
-
-  // Generate and bind Vertex Array Object
-  glGenVertexArrays(1, &left_cross_section_vao);
-  glBindVertexArray(left_cross_section_vao);
-
   glGenTextures(1, &metal_texture_id);
   if (initTexture("./MetalDsk.jpg", metal_texture_id) != 0)
   {
@@ -625,6 +674,11 @@ void setCrossSectionVertices()
   }
 
   setTextureUnit(GL_TEXTURE0);
+
+  // left track
+  // Generate and bind Vertex Array Object
+  glGenVertexArrays(1, &left_cross_section_vao);
+  glBindVertexArray(left_cross_section_vao);
 
   // Generate, bind and send vertex Vertex Buffer Object to shaders
   GLuint left_vertexBufferName;
@@ -644,7 +698,7 @@ void setCrossSectionVertices()
   glVertexAttribPointer(left_uvLocation, 2, GL_FLOAT, GL_FALSE, 0, 0);
   glEnableVertexAttribArray(left_uvLocation);
 
-  // right
+  // right track
   // Generate and bind Vertex Array Object
   glGenVertexArrays(1, &right_cross_section_vao);
   glBindVertexArray(right_cross_section_vao);
@@ -667,6 +721,8 @@ void setCrossSectionVertices()
   glVertexAttribPointer(right_uvLocation, 2, GL_FLOAT, GL_FALSE, 0, 0);
   glEnableVertexAttribArray(right_uvLocation);
 
+  // cross bars
+  // Generate and bind Vertex Array Object
   glGenVertexArrays(1, &cross_bars_vao);
   glBindVertexArray(cross_bars_vao);
 
@@ -699,7 +755,6 @@ void setCamera()
   current_eye = current_eye + spline_n[current_spline_point_index];
   glm::vec3 current_focus = current_eye + spline_t[current_spline_point_index];
   openGLMatrix.LookAt(current_eye.x, current_eye.y, current_eye.z, current_focus.x, current_focus.y, current_focus.z, current_up.x, current_up.y, current_up.z);
-  //    openGLMatrix.LookAt(0, 0, 10, 0, 0, 0, 0, 1, 0);
 
   const clock_t current_time = clock();
   float delta_t = static_cast<float> (current_time - last_time) / CLOCKS_PER_SEC;
@@ -721,8 +776,6 @@ void displayFunc()
   GLfloat projectionMatrix[16];
   openGLMatrix.SetMatrixMode(OpenGLMatrix::Projection);
   openGLMatrix.GetMatrix(projectionMatrix);
-  basic_pipeline.Bind();
-  basic_pipeline.SetProjectionMatrix(projectionMatrix);
   texture_pipeline.Bind();
   texture_pipeline.SetProjectionMatrix(projectionMatrix);
   cube_map_pipeline.Bind();
@@ -732,26 +785,10 @@ void displayFunc()
   openGLMatrix.LoadIdentity();
   setCamera();
 
-  // interactive viewpoint
-  openGLMatrix.SetMatrixMode(OpenGLMatrix::ModelView);
-  openGLMatrix.Translate(landTranslate[0], landTranslate[1], landTranslate[2]);
-  openGLMatrix.Rotate(landRotate[0], 1, 0, 0);
-  openGLMatrix.Rotate(landRotate[1], 0, 1, 0);
-  openGLMatrix.Rotate(landRotate[2], 0, 0, 1);
-  openGLMatrix.Scale(landScale[0], landScale[1], landScale[2]);
-
   // Draw cube map
   drawCubeMap();
   drawCrossSection();
   drawCrossBars();
-
-  basic_pipeline.Bind();
-  glBindVertexArray(spline_vao);
-  GLfloat modelViewMatrix[16];
-  openGLMatrix.SetMatrixMode(OpenGLMatrix::ModelView);
-  openGLMatrix.GetMatrix(modelViewMatrix);
-  basic_pipeline.SetModelViewMatrix(modelViewMatrix);
-  glDrawArrays(GL_POINTS, 0, spline_vertices.size());
 
   glutSwapBuffers(); // Swap buffers for double buffering
 }
@@ -759,10 +796,10 @@ void displayFunc()
 void idleFunc()
 {
   // Uncomment the following to enable saving animation images, 
-  //  char screenName[25];
-  //  sprintf(screenName, "%03d", screenShotCount);
-  //  saveScreenshot(("animation/" + std::string(screenName) + ".jpg").c_str());
-  //  screenShotCount++;
+//  char screenName[25];
+//  sprintf(screenName, "%04lu", screenShotCount);
+//  saveScreenshot(("animation/" + std::string(screenName) + ".jpg").c_str());
+//  screenShotCount++;
 
   // make the screen update 
   glutPostRedisplay();
@@ -779,115 +816,6 @@ void reshapeFunc(int w, int h)
   openGLMatrix.SetMatrixMode(OpenGLMatrix::ModelView);
 }
 
-void mouseMotionDragFunc(int x, int y)
-{
-  // mouse has moved and one of the mouse buttons is pressed (dragging)
-
-  // the change in mouse position since the last invocation of this function
-  int mousePosDelta[2] = {x - mousePos[0], y - mousePos[1]};
-
-  switch (controlState)
-  {
-      // translate the landscape
-    case TRANSLATE:
-      if (leftMouseButton)
-      {
-        // control x,y translation via the left mouse button
-        landTranslate[0] += mousePosDelta[0] * 0.03f;
-        landTranslate[1] -= mousePosDelta[1] * 0.03f;
-      }
-      if (middleMouseButton)
-      {
-        // control z translation via the middle mouse button
-        landTranslate[2] += mousePosDelta[1] * 0.03f;
-      }
-      break;
-
-      // rotate the landscape
-    case ROTATE:
-      if (leftMouseButton)
-      {
-        // control x,y rotation via the left mouse button
-        landRotate[0] += mousePosDelta[1] * 0.1f;
-        landRotate[1] += mousePosDelta[0] * 0.1f;
-      }
-      if (middleMouseButton)
-      {
-        // control z rotation via the middle mouse button
-        landRotate[2] += mousePosDelta[1] * 0.1f;
-      }
-      break;
-
-      // scale the landscape
-    case SCALE:
-      if (leftMouseButton)
-      {
-        // control x,y scaling via the left mouse button
-        landScale[0] *= 1.0f + mousePosDelta[0] * 0.01f;
-        landScale[1] *= 1.0f - mousePosDelta[1] * 0.01f;
-      }
-      if (middleMouseButton)
-      {
-        // control z scaling via the middle mouse button
-        landScale[2] *= 1.0f - mousePosDelta[1] * 0.01f;
-      }
-      break;
-  }
-
-  // store the new mouse position
-  mousePos[0] = x;
-  mousePos[1] = y;
-}
-
-void mouseMotionFunc(int x, int y)
-{
-  // Store the new mouse position
-  mousePos[0] = x;
-  mousePos[1] = y;
-}
-
-void mouseButtonFunc(int button, int state, int x, int y)
-{
-  // Set flags when a mouse button has been pressed or depressed
-
-  // Keep track of the mouse button state, in leftMouseButton, middleMouseButton, rightMouseButton variables
-  switch (button)
-  {
-    case GLUT_LEFT_BUTTON:
-      leftMouseButton = (state == GLUT_DOWN);
-      break;
-
-    case GLUT_MIDDLE_BUTTON:
-      middleMouseButton = (state == GLUT_DOWN);
-      break;
-
-    case GLUT_RIGHT_BUTTON:
-      rightMouseButton = (state == GLUT_DOWN);
-      break;
-  }
-
-  // keep track of whether CTRL and SHIFT keys are pressed
-  switch (glutGetModifiers())
-  {
-    case GLUT_ACTIVE_CTRL:
-      controlState = TRANSLATE;
-      break;
-
-    case GLUT_ACTIVE_SHIFT:
-      controlState = SCALE;
-      break;
-
-      // If CTRL and SHIFT are not pressed, we are in rotate mode
-    default:
-      controlState = ROTATE;
-      break;
-  }
-
-  // Store the new mouse position
-  mousePos[0] = x;
-  mousePos[1] = y;
-}
-
 void keyboardFunc(unsigned char key, int x, int y)
 {
   switch (key)
@@ -899,9 +827,6 @@ void keyboardFunc(unsigned char key, int x, int y)
       // Reset
       current_spline_point_index = 0;
       std::cout << "You pressed the spacebar." << std::endl;
-      std::fill(landRotate.begin(), landRotate.end(), 0.0f);
-      std::fill(landTranslate.begin(), landTranslate.end(), 0.0f);
-      std::fill(landScale.begin(), landScale.end(), 1.0f);
       break;
 
     case 'x':
@@ -913,125 +838,11 @@ void keyboardFunc(unsigned char key, int x, int y)
 
 void initScene()
 {
-  // ================ cube map
   cube_map_pipeline.Init("../openGLHelper-starterCode", "cubeMap.vertexShader.glsl", "cubeMap.fragmentShader.glsl");
-  // Generate and bind Vertex Array Object
-  glGenVertexArrays(1, &cube_map_vao);
-  glBindVertexArray(cube_map_vao);
-
-  for (auto &f : cube_map_vertices)
-  {
-    f *= 1000;
-  }
-
-  // Generate, bind and send vertex Vertex Buffer Object to shaders
-  GLuint cube_map_vertexBufferName;
-  glGenBuffers(1, &cube_map_vertexBufferName);
-  glBindBuffer(GL_ARRAY_BUFFER, cube_map_vertexBufferName);
-  glBufferData(GL_ARRAY_BUFFER, cube_map_vertices.size() * sizeof (GLfloat), &cube_map_vertices[0], GL_STATIC_DRAW);
-  GLuint cube_map_posLocation = glGetAttribLocation(cube_map_pipeline.GetProgramHandle(), "position");
-  glVertexAttribPointer(cube_map_posLocation, 3, GL_FLOAT, GL_FALSE, 0, 0);
-  glEnableVertexArrayAttrib(cube_map_vao, cube_map_posLocation);
-
-  std::vector<std::string> file_names = {"./arrakisday_rt.jpg", "./arrakisday_lf.jpg", "./arrakisday_dn.jpg", "./arrakisday_up.jpg", "./arrakisday_bk.jpg", "./arrakisday_ft.jpg"};
-  //  std::vector<std::string> file_names = {"./right.jpg", "./left.jpg", "./bottom.jpg", "./top.jpg", "./back.jpg", "./front.jpg"};
-
-  if (initCubeMap(file_names) != 0)
-  {
-    std::cerr << "ggg " << std::endl;
-  }
-  //
-  std::cout << "spline.points.size() " << spline.points.size() << std::endl;
-  //  for (size_t i = 0; i < spline.points.size(); i++) {
-  //    std::cout << "spline.points[i] " << i << " " << glm::to_string(spline.points[i]) << std::endl;
-  //  }
-
-  glm::vec3 p0 = spline.points[0];
-  glm::vec3 p_last = spline.points[spline.points.size() - 1];
-
-  glm::vec3 p1, p2, p3, p4;
-  for (size_t j = 0; j < spline.points.size() - 1; j++)
-  {
-    if (j == 0)
-    {
-      p1 = p0;
-    }
-    else
-    {
-      p1 = spline.points[j - 1];
-    }
-    p2 = spline.points[j];
-    p3 = spline.points[j + 1];
-    if (j == spline.points.size() - 2)
-    {
-      p4 = p_last;
-    }
-    else
-    {
-      p4 = spline.points[j + 2];
-    }
-
-    //            std::cout << "p1: " << p1.x << " " << p1.y << " " << p1.z << std::endl;
-    //            std::cout << "p2: " << p2.x << " " << p2.y << " " << p2.z << std::endl;
-    //            std::cout << "p3: " << p3.x << " " << p3.y << " " << p3.z << std::endl;
-    //            std::cout << "p4: " << p4.x << " " << p4.y << " " << p4.z << std::endl;
-    CatmullRom catmull_rom(p1, p2, p3, p4, 0.5);
-    std::vector<glm::vec3> spline_points = catmull_rom.subDivide(0.0, 1.0, divide_threshold);
-
-    // remove repeated points 
-    if (j != 0)
-    {
-      spline_points.erase(spline_points.begin());
-    }
-
-    for (const glm::vec3 &p : spline_points)
-    {
-      spline_vertices.push_back(p.x);
-      spline_vertices.push_back(p.y);
-      spline_vertices.push_back(p.z);
-      //        std::cout << p.x_ << " " << p.y_ << " " << p.z_ << std::endl;
-    }
-  }
-
-
-  num_spline_points = spline_vertices.size() / 3;
-  std::cout << "num_spline_points: " << num_spline_points << std::endl;
-  std::vector<GLfloat> colors;
-  for (size_t i = 0; i < num_spline_points; i++)
-  {
-    colors.push_back(1.0);
-    colors.push_back(1.0);
-    colors.push_back(1.0);
-    colors.push_back(0.0);
-  }
-
-  // Create shaders
-  basic_pipeline.Init("../openGLHelper-starterCode", "basic.vertexShader.glsl", "basic.fragmentShader.glsl");
-
-  // Generate and bind Vertex Array Object
-  glGenVertexArrays(1, &spline_vao);
-  glBindVertexArray(spline_vao);
-
-  // Generate, bind and send vertex Vertex Buffer Object to shaders
-  GLuint vertexBufferName;
-  glGenBuffers(1, &vertexBufferName);
-  glBindBuffer(GL_ARRAY_BUFFER, vertexBufferName);
-  glBufferData(GL_ARRAY_BUFFER, spline_vertices.size() * sizeof (GLfloat), &spline_vertices[0], GL_STATIC_DRAW);
-  GLuint posLocation = glGetAttribLocation(basic_pipeline.GetProgramHandle(), "position");
-  glVertexAttribPointer(posLocation, 3, GL_FLOAT, GL_FALSE, 0, 0);
-  glEnableVertexArrayAttrib(spline_vao, posLocation);
-
-  // Generate, bind and send color Vertex Buffer Object to shaders
-  GLuint colorBufferName;
-  glGenBuffers(1, &colorBufferName);
-  glBindBuffer(GL_ARRAY_BUFFER, colorBufferName);
-  glBufferData(GL_ARRAY_BUFFER, colors.size() * sizeof (GLfloat), &colors[0], GL_STATIC_DRAW);
-  GLuint colLocation = glGetAttribLocation(basic_pipeline.GetProgramHandle(), "color");
-  glVertexAttribPointer(colLocation, 4, GL_FLOAT, GL_FALSE, 0, 0);
-  glEnableVertexArrayAttrib(spline_vao, colLocation);
-
-  // ====================objects with textures=====================
   texture_pipeline.Init("../openGLHelper-starterCode", "texture.vertexShader.glsl", "texture.fragmentShader.glsl");
+
+  setCubeMap();
+  setSplinePoints();
   setCrossSectionVertices();
 
   // Enable depth testing so that the hidden scene will not be drawn.
@@ -1055,7 +866,6 @@ int main(int argc, char ** argv)
   printf("Loaded %lu spline(s).\n", numSplines);
 
   // initialize openGL
-
   std::cout << "Initializing GLUT..." << std::endl;
   glutInit(&argc, argv);
   // Use core profile
@@ -1081,12 +891,6 @@ int main(int argc, char ** argv)
   glutDisplayFunc(displayFunc);
   // perform animation inside idleFunc
   glutIdleFunc(idleFunc);
-  // callback for mouse drags
-  glutMotionFunc(mouseMotionDragFunc);
-  // callback for idle mouse movement
-  glutPassiveMotionFunc(mouseMotionFunc);
-  // callback for mouse button changes
-  glutMouseFunc(mouseButtonFunc);
   // callback for resizing the window
   glutReshapeFunc(reshapeFunc);
   // callback for pressing the keys on the keyboard
@@ -1117,4 +921,3 @@ int main(int argc, char ** argv)
 
   return 0;
 }
-
