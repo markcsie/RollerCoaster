@@ -74,7 +74,7 @@ const float max_z = 7.0;
 size_t current_spline_point_index = 0;
 
 // the spline array 
-std::vector<Spline> splines;
+Spline spline;
 std::vector<GLfloat> spline_vertices;
 std::vector<glm::vec3> spline_n;
 std::vector<glm::vec3> spline_t;
@@ -84,7 +84,6 @@ const float beta = 0.4;
 const float cross_section_width = 2.0;
 // total number of splines 
 GLsizei numSplines;
-std::vector<GLsizei> g_num_spline_vertices;
 GLsizei num_spline_points;
 
 GLuint metal_texture_id;
@@ -148,10 +147,8 @@ int loadSplines(char * argv)
 
   // stores the number of splines in a global variable 
   fscanf(fileList, "%d", &numSplines);
-  splines.clear();
-  splines.resize(numSplines);
 
-//  glm::vec3 last_point(0, 0, 0);
+  glm::vec3 last_point(0, 0, 0);
   // reads through the spline files 
   for (j = 0; j < numSplines; j++)
   {
@@ -167,19 +164,25 @@ int loadSplines(char * argv)
     // gets length for spline file
     fscanf(fileSpline, "%d %d", &iLength, &iType);
 
-    // allocate memory for all the points
-    splines[j].points.clear();
-    splines[j].points.resize(iLength);
-
     size_t i = 0;
     // saves the data to the struct
-    while (fscanf(fileSpline, "%f %f %f", &splines[j].points[i].x, &splines[j].points[i].y, &splines[j].points[i].z) != EOF)
+    glm::vec3 point;
+    glm::vec3 first_point;
+    while (fscanf(fileSpline, "%f %f %f", &point.x, &point.y, &point.z) != EOF)
     {
-//      splines[j].points[i] = splines[j].points[i] + last_point;
+      if (i == 0) 
+      {
+        first_point = point;
+      }
+      point = point - first_point;
+      point = point + last_point;
+      if (i != 0 || j == 0) {
+        spline.points.push_back(point);
+      }
       i++;
     }
-//    splines[j].points[i-1] = splines[j].points[i-1] + last_point;
-//    last_point = splines[j].points.back();
+
+    last_point = spline.points.back();
   }
 
   free(cName);
@@ -932,58 +935,58 @@ void initScene()
     std::cerr << "ggg " << std::endl;
   }
   //
+  std::cout << "spline.points.size() " << spline.points.size() << std::endl;
+//  for (size_t i = 0; i < spline.points.size(); i++) {
+//    std::cout << "spline.points[i] " << i << " " << glm::to_string(spline.points[i]) << std::endl;
+//  }
+  
+  glm::vec3 p0 = spline.points[0];
+  glm::vec3 p_last = spline.points[spline.points.size() - 1];
 
-  for (size_t i = 0; i < splines.size(); i++)
+  glm::vec3 p1, p2, p3, p4;
+  for (size_t j = 0; j < spline.points.size() - 1; j++)
   {
-    glm::vec3 p0 = splines[i].points[0];
-    glm::vec3 p_last = splines[i].points[splines[i].points.size() - 1];
-
-    glm::vec3 p1, p2, p3, p4;
-    g_num_spline_vertices.push_back(0);
-    for (size_t j = 0; j < splines[i].points.size() - 1; j++)
+    if (j == 0)
     {
-      if (j == 0)
-      {
-        p1 = p0;
-      }
-      else
-      {
-        p1 = splines[i].points[j - 1];
-      }
-      p2 = splines[i].points[j];
-      p3 = splines[i].points[j + 1];
-      if (j == splines[i].points.size() - 2)
-      {
-        p4 = p_last;
-      }
-      else
-      {
-        p4 = splines[i].points[j + 2];
-      }
+      p1 = p0;
+    }
+    else
+    {
+      p1 = spline.points[j - 1];
+    }
+    p2 = spline.points[j];
+    p3 = spline.points[j + 1];
+    if (j == spline.points.size() - 2)
+    {
+      p4 = p_last;
+    }
+    else
+    {
+      p4 = spline.points[j + 2];
+    }
 
-      //            std::cout << "p1: " << p1.x << " " << p1.y << " " << p1.z << std::endl;
-      //            std::cout << "p2: " << p2.x << " " << p2.y << " " << p2.z << std::endl;
-      //            std::cout << "p3: " << p3.x << " " << p3.y << " " << p3.z << std::endl;
-      //            std::cout << "p4: " << p4.x << " " << p4.y << " " << p4.z << std::endl;
-      CatmullRom catmull_rom(p1, p2, p3, p4, 0.5);
-      std::vector<glm::vec3> spline_points = catmull_rom.subDivide(0.0, 1.0, divide_threshold);
+    //            std::cout << "p1: " << p1.x << " " << p1.y << " " << p1.z << std::endl;
+    //            std::cout << "p2: " << p2.x << " " << p2.y << " " << p2.z << std::endl;
+    //            std::cout << "p3: " << p3.x << " " << p3.y << " " << p3.z << std::endl;
+    //            std::cout << "p4: " << p4.x << " " << p4.y << " " << p4.z << std::endl;
+    CatmullRom catmull_rom(p1, p2, p3, p4, 0.5);
+    std::vector<glm::vec3> spline_points = catmull_rom.subDivide(0.0, 1.0, divide_threshold);
 
-      // remove repeated points 
-      if (j != 0)
-      {
-        spline_points.erase(spline_points.begin());
-      }
+    // remove repeated points 
+    if (j != 0)
+    {
+      spline_points.erase(spline_points.begin());
+    }
 
-      for (const auto &p : spline_points)
-      {
-        spline_vertices.push_back(p.x);
-        spline_vertices.push_back(p.y);
-        spline_vertices.push_back(p.z);
-        //        std::cout << p.x_ << " " << p.y_ << " " << p.z_ << std::endl;
-        g_num_spline_vertices.back()++;
-      }
+    for (const glm::vec3 &p : spline_points)
+    {
+      spline_vertices.push_back(p.x);
+      spline_vertices.push_back(p.y);
+      spline_vertices.push_back(p.z);
+      //        std::cout << p.x_ << " " << p.y_ << " " << p.z_ << std::endl;
     }
   }
+  
 
   num_spline_points = spline_vertices.size() / 3;
   std::cout << "num_spline_points: " << num_spline_points << std::endl;
@@ -1044,10 +1047,6 @@ int main(int argc, char ** argv)
   loadSplines(argv[1]);
 
   printf("Loaded %d spline(s).\n", numSplines);
-  for (int i = 0; i < numSplines; i++)
-  {
-    printf("Num control points in spline %d: %d.\n", i, splines[i].points.size());
-  }
 
   // initialize openGL
 
