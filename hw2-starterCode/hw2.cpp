@@ -67,9 +67,10 @@ std::vector<GLfloat> cube_map_vertices = {
   1.0f, -1.0f, 1.0f
 };
 
-size_t counter = 0;
 double divide_threshold = 0.01;
-const size_t speed = 10;
+clock_t last_time;
+const float g = 9.8 * 1000;
+const float max_z = 7.0;
 size_t current_spline_point_index = 0;
 
 // the spline array 
@@ -135,7 +136,7 @@ int loadSplines(char * argv)
   char * cName = (char *) malloc(128 * sizeof (char));
   FILE * fileList;
   FILE * fileSpline;
-  int iType, i = 0, j, iLength;
+  int iType, j, iLength;
 
   // load the track file 
   fileList = fopen(argv, "r");
@@ -150,10 +151,10 @@ int loadSplines(char * argv)
   splines.clear();
   splines.resize(numSplines);
 
+//  glm::vec3 last_point(0, 0, 0);
   // reads through the spline files 
   for (j = 0; j < numSplines; j++)
   {
-    i = 0;
     fscanf(fileList, "%s", cName);
     fileSpline = fopen(cName, "r");
 
@@ -170,14 +171,15 @@ int loadSplines(char * argv)
     splines[j].points.clear();
     splines[j].points.resize(iLength);
 
+    size_t i = 0;
     // saves the data to the struct
-    while (fscanf(fileSpline, "%f %f %f",
-            &splines[j].points[i].x,
-            &splines[j].points[i].y,
-            &splines[j].points[i].z) != EOF)
+    while (fscanf(fileSpline, "%f %f %f", &splines[j].points[i].x, &splines[j].points[i].y, &splines[j].points[i].z) != EOF)
     {
+//      splines[j].points[i] = splines[j].points[i] + last_point;
       i++;
     }
+//    splines[j].points[i-1] = splines[j].points[i-1] + last_point;
+//    last_point = splines[j].points.back();
   }
 
   free(cName);
@@ -689,7 +691,15 @@ void setCamera()
   openGLMatrix.LookAt(current_eye.x, current_eye.y, current_eye.z, current_focus.x, current_focus.y, current_focus.z, current_up.x, current_up.y, current_up.z);
 //    openGLMatrix.LookAt(0, 0, 10, 0, 0, 0, 0, 1, 0);
 
-  current_spline_point_index += speed;
+  const clock_t current_time = clock();
+  float delta_t = static_cast<float>(current_time - last_time) / CLOCKS_PER_SEC;
+  float speed = delta_t * std::sqrt(2 * g * (max_z - current_eye.z));
+  current_spline_point_index += std::ceil(speed);
+  if (current_spline_point_index >= num_spline_points) {
+    current_spline_point_index = 0;
+  }
+  
+  last_time = current_time;
 }
 
 void displayFunc()
@@ -756,7 +766,7 @@ void reshapeFunc(int w, int h)
   // Setup perspective matrix
   openGLMatrix.SetMatrixMode(OpenGLMatrix::Projection);
   openGLMatrix.LoadIdentity();
-  openGLMatrix.Perspective(90.0, 1.0 * w / h, 0.01, 2000.0);
+  openGLMatrix.Perspective(60.0, 1.0 * w / h, 0.01, 1800.0);
   openGLMatrix.SetMatrixMode(OpenGLMatrix::ModelView);
 }
 
@@ -1096,6 +1106,7 @@ int main(int argc, char ** argv)
   // do initialization
   initScene();
 
+  last_time = clock();
   // sink forever into the glut loop
   glutMainLoop();
 
