@@ -83,8 +83,8 @@ const float alpha = 0.1;
 const float beta = 0.4;
 const float cross_section_width = 2.0;
 // total number of splines 
-GLsizei numSplines;
-GLsizei num_spline_points;
+size_t numSplines;
+size_t num_spline_points;
 
 GLuint metal_texture_id;
 GLuint wood_texture_id;
@@ -135,7 +135,6 @@ int loadSplines(char * argv)
   char * cName = (char *) malloc(128 * sizeof (char));
   FILE * fileList;
   FILE * fileSpline;
-  int iType, j, iLength;
 
   // load the track file 
   fileList = fopen(argv, "r");
@@ -146,13 +145,19 @@ int loadSplines(char * argv)
   }
 
   // stores the number of splines in a global variable 
-  fscanf(fileList, "%d", &numSplines);
+  if (fscanf(fileList, "%lu", &numSplines) <= 0)
+  {
+    std::cerr << "error" << std::endl;
+  }
 
   glm::vec3 last_point(0, 0, 0);
   // reads through the spline files 
-  for (j = 0; j < numSplines; j++)
+  for (size_t j = 0; j < numSplines; j++)
   {
-    fscanf(fileList, "%s", cName);
+    if (fscanf(fileList, "%s", cName) <= 0)
+    {
+      std::cerr << "error" << std::endl;
+    }
     fileSpline = fopen(cName, "r");
 
     if (fileSpline == NULL)
@@ -162,7 +167,11 @@ int loadSplines(char * argv)
     }
 
     // gets length for spline file
-    fscanf(fileSpline, "%d %d", &iLength, &iType);
+    int iType, iLength;
+    if (fscanf(fileSpline, "%d %d", &iLength, &iType) <= 0)
+    {
+      std::cerr << "error" << std::endl;
+    }
 
     size_t i = 0;
     // saves the data to the struct
@@ -170,13 +179,14 @@ int loadSplines(char * argv)
     glm::vec3 first_point;
     while (fscanf(fileSpline, "%f %f %f", &point.x, &point.y, &point.z) != EOF)
     {
-      if (i == 0) 
+      if (i == 0)
       {
         first_point = point;
       }
       point = point - first_point;
       point = point + last_point;
-      if (i != 0 || j == 0) {
+      if (i != 0 || j == 0)
+      {
         spline.points.push_back(point);
       }
       i++;
@@ -253,13 +263,13 @@ int initTexture(const char * imageFilename, GLuint textureHandle)
   // set anisotropic texture filtering
   glTexParameterf(GL_TEXTURE_2D, GL_TEXTURE_MAX_ANISOTROPY_EXT, 0.5f * fLargest);
 
-  // query for any errors
-  //  GLenum errCode = glGetError();
-  //  if (errCode != 0)
-  //  {
-  //    printf("Texture initialization error. Error code: %d.\n", errCode);
-  //    return -1;
-  //  }
+  //query for any errors
+  //    GLenum errCode = glGetError();
+  //    if (errCode != 0)
+  //    {
+  //      printf("Texture initialization error. Error code: %d.\n", errCode);
+  //      return -1;
+  //    }
 
   // de-allocate the pixel array -- it is no longer needed
   delete [] pixelsRGBA;
@@ -342,7 +352,6 @@ void setTextureUnit(GLint unit)
 }
 
 // write a screenshot to the specified filename
-
 void saveScreenshot(const char * filename)
 {
   unsigned char * screenshotData = new unsigned char[windowWidth * windowHeight * 3];
@@ -371,7 +380,6 @@ void drawCubeMap()
   openGLMatrix.SetMatrixMode(OpenGLMatrix::ModelView);
   openGLMatrix.PushMatrix();
 
-  //  std::cout << "ggg splines_n[0] " << glm::to_string(spline_n[0]) << std::endl;
   openGLMatrix.Rotate(90, 1, 0, 0);
   openGLMatrix.Scale(1, -1, 1);
   GLfloat modelViewMatrix[16];
@@ -389,13 +397,13 @@ void drawCubeMap()
 void drawCrossSection()
 {
   texture_pipeline.Bind();
-  glBindTexture(GL_TEXTURE_2D, metal_texture_id);
-  // Set model view matrix for shaders
+  
   openGLMatrix.SetMatrixMode(OpenGLMatrix::ModelView);
-
   GLfloat modelViewMatrix[16];
   openGLMatrix.GetMatrix(modelViewMatrix);
   texture_pipeline.SetModelViewMatrix(modelViewMatrix);
+  
+  glBindTexture(GL_TEXTURE_2D, metal_texture_id);
   // left track
   glBindVertexArray(left_cross_section_vao);
   glDrawArrays(GL_TRIANGLES, 0, left_cross_section_vertices.size());
@@ -411,15 +419,14 @@ void drawCrossSection()
 void drawCrossBars()
 {
   texture_pipeline.Bind();
-  glBindTexture(GL_TEXTURE_2D, wood_texture_id);
-  // Set model view matrix for shaders
+  
   openGLMatrix.SetMatrixMode(OpenGLMatrix::ModelView);
-
   GLfloat modelViewMatrix[16];
   openGLMatrix.GetMatrix(modelViewMatrix);
   texture_pipeline.SetModelViewMatrix(modelViewMatrix);
 
   // bars
+  glBindTexture(GL_TEXTURE_2D, wood_texture_id);
   glBindVertexArray(cross_bars_vao);
   glDrawArrays(GL_TRIANGLES, 0, cross_bar_vertices.size());
 
@@ -572,9 +579,9 @@ void setCrossSectionVertices()
       glm::vec3 bar_v3 = bar_v2 - 0.1 * spline_n[i];
 
       glm::vec3 bar_v5 = bar_v1 + 0.3 * (right_v4 - right_v0);
-      glm::vec3 bar_v4 = bar_v5 - 0.1 * spline_n[i+1];
+      glm::vec3 bar_v4 = bar_v5 - 0.1 * spline_n[i + 1];
       glm::vec3 bar_v6 = bar_v2 + 0.3 * (left_v7 - left_v3);
-      glm::vec3 bar_v7 = bar_v6 - 0.1 * spline_n[i+1];
+      glm::vec3 bar_v7 = bar_v6 - 0.1 * spline_n[i + 1];
 
       pushFaceVertices(cross_bar_vertices, bar_v0, bar_v1, bar_v2, bar_v3);
       pushFaceVertices(cross_bar_vertices, bar_v0, bar_v4, bar_v5, bar_v1);
@@ -595,9 +602,9 @@ void setCrossSectionVertices()
     }
   }
 
-//  assert(spline_n.size() == num_spline_points && spline_n.size() == spline_t.size() && spline_t.size() == spline_b.size());
-//  assert(left_cross_section_vertices.size() == (num_spline_points - 1) * 5 * 2 * 3 * 3);
-//  assert(right_cross_section_vertices.size() == (num_spline_points - 1) * 5 * 2 * 3 * 3);
+  //  assert(spline_n.size() == num_spline_points && spline_n.size() == spline_t.size() && spline_t.size() == spline_b.size());
+  //  assert(left_cross_section_vertices.size() == (num_spline_points - 1) * 5 * 2 * 3 * 3);
+  //  assert(right_cross_section_vertices.size() == (num_spline_points - 1) * 5 * 2 * 3 * 3);
 
   // Generate and bind Vertex Array Object
   glGenVertexArrays(1, &left_cross_section_vao);
@@ -692,16 +699,17 @@ void setCamera()
   current_eye = current_eye + spline_n[current_spline_point_index];
   glm::vec3 current_focus = current_eye + spline_t[current_spline_point_index];
   openGLMatrix.LookAt(current_eye.x, current_eye.y, current_eye.z, current_focus.x, current_focus.y, current_focus.z, current_up.x, current_up.y, current_up.z);
-//    openGLMatrix.LookAt(0, 0, 10, 0, 0, 0, 0, 1, 0);
+  //    openGLMatrix.LookAt(0, 0, 10, 0, 0, 0, 0, 1, 0);
 
   const clock_t current_time = clock();
-  float delta_t = static_cast<float>(current_time - last_time) / CLOCKS_PER_SEC;
+  float delta_t = static_cast<float> (current_time - last_time) / CLOCKS_PER_SEC;
   float speed = delta_t * std::sqrt(2 * g * (max_z - current_eye.z));
   current_spline_point_index += std::ceil(speed);
-  if (current_spline_point_index >= num_spline_points) {
+  if (current_spline_point_index >= num_spline_points)
+  {
     current_spline_point_index = 0;
   }
-  
+
   last_time = current_time;
 }
 
@@ -734,8 +742,6 @@ void displayFunc()
 
   // Draw cube map
   drawCubeMap();
-
-
   drawCrossSection();
   drawCrossBars();
 
@@ -936,10 +942,10 @@ void initScene()
   }
   //
   std::cout << "spline.points.size() " << spline.points.size() << std::endl;
-//  for (size_t i = 0; i < spline.points.size(); i++) {
-//    std::cout << "spline.points[i] " << i << " " << glm::to_string(spline.points[i]) << std::endl;
-//  }
-  
+  //  for (size_t i = 0; i < spline.points.size(); i++) {
+  //    std::cout << "spline.points[i] " << i << " " << glm::to_string(spline.points[i]) << std::endl;
+  //  }
+
   glm::vec3 p0 = spline.points[0];
   glm::vec3 p_last = spline.points[spline.points.size() - 1];
 
@@ -986,7 +992,7 @@ void initScene()
       //        std::cout << p.x_ << " " << p.y_ << " " << p.z_ << std::endl;
     }
   }
-  
+
 
   num_spline_points = spline_vertices.size() / 3;
   std::cout << "num_spline_points: " << num_spline_points << std::endl;
@@ -1046,7 +1052,7 @@ int main(int argc, char ** argv)
   // load the splines from the provided filename
   loadSplines(argv[1]);
 
-  printf("Loaded %d spline(s).\n", numSplines);
+  printf("Loaded %lu spline(s).\n", numSplines);
 
   // initialize openGL
 
