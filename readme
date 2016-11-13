@@ -25,8 +25,9 @@ Basic requirements for this homework:
 
 
 Extras:
-1. Render double rail (like in real railroad tracks).
-2. Generate the track from several different sequences of splines (multiple track files)
-3. Draw splines using recursive subdivision (vary step size to draw short lines) instead of using brute force (vary u with fixed step size).
-4. Modify the velocity with which the camera moves to make it physically realistic in terms of gravity.
-5. The rails are also texture-mapped.
+1. Render double rails (like in real railroad tracks).
+2. Render cross bars.
+3. Generate the track from several different sequences of splines (multiple track files)
+4. Draw splines using recursive subdivision (vary step size to draw short lines) instead of using brute force (vary u with fixed step size).
+5. Modify the velocity with which the camera moves to make it physically realistic in terms of gravity.
+6. The cross bars and rails are also texture-mapped.
